@@ -51,35 +51,36 @@ namespace SpaceTrade.Sim
         /// naming the fields to look at, and the built-in defaults are used. With the built-in defaults a new
         /// game never fails: a seed they cannot meet the guarantees on is skipped for the next one.
         /// </summary>
-        public static NewGameResult Create(long seed, TuningData tuning)
+        /// <param name="debug">Debug permission for the new game (spec 13), or null.</param>
+        public static NewGameResult Create(long seed, TuningData tuning, DebugCapability debug = null)
         {
             if (tuning == null) throw new ArgumentNullException(nameof(tuning));
             bool isDefaults = TuningWriter.Write(tuning) == TuningWriter.Write(TuningDefaults.Create());
             if (!isDefaults)
             {
-                var sim = TryCreate(seed, tuning, out var problems);
+                var sim = TryCreate(seed, tuning, out var problems, debug);
                 if (sim != null) return new NewGameResult(sim, seed, seed, usedDefaults: false, new List<string>());
-                var fallback = CreateTryingSeeds(seed, TuningDefaults.Create(), out long fallbackSeed);
+                var fallback = CreateTryingSeeds(seed, TuningDefaults.Create(), out long fallbackSeed, debug);
                 return new NewGameResult(fallback, seed, fallbackSeed, usedDefaults: true, problems);
             }
-            var game = CreateTryingSeeds(seed, tuning, out long used);
+            var game = CreateTryingSeeds(seed, tuning, out long used, debug);
             return new NewGameResult(game, seed, used, usedDefaults: false, new List<string>());
         }
 
         /// <summary>Tries <paramref name="seed"/>, then each following seed, until the guarantees hold.</summary>
-        internal static Simulation CreateTryingSeeds(long seed, TuningData tuning, out long seedUsed)
+        internal static Simulation CreateTryingSeeds(long seed, TuningData tuning, out long seedUsed, DebugCapability debug = null)
         {
             long s = seed;
             for (int i = 0; i < MaxSeedsTried; i++, s = unchecked(s + 1))
             {
-                var sim = TryCreate(s, tuning, out _);
+                var sim = TryCreate(s, tuning, out _, debug);
                 if (sim != null) { seedUsed = s; return sim; }
             }
             throw new InvalidOperationException($"No new game met the guarantees for any of the {MaxSeedsTried} seeds from {seed}.");
         }
 
         /// <summary>The game for exactly this seed, or null with the reasons, each naming the fields to look at.</summary>
-        internal static Simulation TryCreate(long seed, TuningData tuning, out List<string> problems)
+        internal static Simulation TryCreate(long seed, TuningData tuning, out List<string> problems, DebugCapability debug = null)
         {
             problems = new List<string>();
             if (tuning.ShipNames.Count == 0)
@@ -99,7 +100,7 @@ namespace SpaceTrade.Sim
                 return null;
             }
 
-            var sim = new Simulation(0, ClockSpeed.X1, paused: true);
+            var sim = new Simulation(0, ClockSpeed.X1, paused: true, debug);
             var market = Market.Create(galaxy, tuning, 0);
             sim.AttachMarket(market);
             sim.SetCredits(tuning.Start.StartingCredits);

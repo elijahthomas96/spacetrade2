@@ -48,7 +48,8 @@ Other technical defaults (agent may change with a note in `docs/progress.md`): U
 - A speed change takes effect for every ship at once. It never changes a voyage's arrival date, manifest, required supplies, or payout.
 - The driver adds unscaled real elapsed time, multiplied by the speed once, to a carry value and advances whole ticks. Event timing does not depend on frame rate.
 - The game keeps running when the window is not focused (`runInBackground` on).
-- If the PC sleeps while the game is open, the driver reconciles on wake using the same rule as offline catch-up (section 11.3).
+- If the PC sleeps while the game is open, waking goes through the offline catch-up path (section 11.3): the same elapsed-time rule, one atomic save, and a return summary. **How sleep is detected:** every frame the game reads the real-world (UTC) clock; a gap of **30 real seconds or more** since the previous frame counts as a wake. The whole gap is then counted once by the catch-up rule from the UTC clock, the frame-timing clock is reset so the gap is never counted twice, and the result is saved at once. A gap under 30 seconds is an ordinary frame. The summary panel is shown only when the time away is **5 real minutes or more**, the same threshold as opening a closed game. Both numbers are fixed in code, not tuning. Sleep catch-up and closed-game catch-up over the same gap end in byte-identical state.
+- If the real-world clock jumps backward while the game is running, that frame is ordinary: time keeps flowing from the frame-timing clock, which never runs backward.
 
 ### 3.3 Transit time
 
@@ -366,6 +367,7 @@ This is how a broke player recovers. It replaces the brief's emergency contract.
 - The daily rate is per ship class, in the tuning file, and must be at least 1 credit for every class (a lower value is a tuning error naming the field), so recovery is always possible. It is set low: default target is that a full game year of in-system transport earns about 10 to 15 percent of what the same ship earns from typical voyages in that time.
 - It uses no provisions and needs no cargo.
 - It runs through the normal event queue, so it earns nothing while paused and earns correctly during offline catch-up.
+- **In-system income total.** The simulation keeps a running total of every credit earned from in-system transport, like the supplies-bought total (section 6.7). It is one total, saved with the game, and the return summary uses it (section 11.3).
 - A ship on an automated route can only be toggled after the route is paused or cleared. The request is refused with that reason and changes nothing (section 8.2).
 - There is no other rescue mechanic. Because this income is always available to a docked ship, the player can always earn enough to provision the cheapest feasible job.
 
@@ -373,22 +375,41 @@ This is how a broke player recovers. It replaces the brief's emergency contract.
 
 ### 11.1 Contents
 
-Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\LocalLow\spacetrade2\spacetrade2\saves\`). A save holds: save format version, galaxy seed and the generated galaxy, random generator state, clock tick, selected speed, pause state, market supply, demand, bookings, rates and reservations, every shipyard's stock counts, stock-limit rolls, and price roll, credits, ships with provisions and cost, in-flight voyages with locked terms, every delivery receipt, route orders and waiting or blocked state, in-system toggles with the tick each went on, whether the start port's opening rates are still held (section 6.4), notifications, and the real-world UTC timestamp of the save.
+Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\LocalLow\spacetrade2\spacetrade2\saves\`). Each save is one JSON text file. A save holds:
 
-### 11.2 Writing
+- **Header:** a marker naming it a spacetrade2 save, the save format version, the real-world UTC timestamp of the save, and a checksum (section 11.2).
+- **Clock:** the tick, the selected speed, and the pause state.
+- **Money:** credits, the supplies-bought total (section 6.7), and the in-system income total (section 10).
+- **Galaxy:** the seed, the start system, and every generated system exactly (id, name, position, population, industries, whether it has a shipyard), so a later change to galaxy generation never changes a saved galaxy.
+- **Market:** when the market was created; both random generators' exact states (market and shipyard); whether the start port's opening rates are still held (section 6.4); every supply and demand stock; every freight offer's and passenger pool's stored roll and waiting passengers; every system's provision price rolls; every shipyard's price roll and, per ship class and drive, its stock count and stock-limit roll. Reservations last only inside a command, so none is ever open when a save is written.
+- **Ships:** for every ship, its **id, name, class, drive, and docked system (empty while in transit)**; fuel, food, and water aboard, each with its total cost; the tick its in-system transport went on (if on); its voyage in flight with all locked terms (origin, destination, distance, drive, departure and arrival ticks, freight lines with locked rates, passengers and locked fare, and the fuel, food, and water it will use); and its route (stops with every order, current stop, paused or not, status and its reason, whether it is blocked for a top-up, and its last and pending recheck ticks). The next ship id is saved too.
+- **Every delivery receipt**, in arrival order. Receipts are never trimmed.
+- **Notifications:** the newest ones kept (section 12, `notifications.keepNewest`).
+- **Pending events:** every scheduled event (arrivals, market replenishment and re-rolls, in-system pay days, route rechecks) with its tick and its ordering number, plus the next ordering number, stored exactly. Loading checks that these events match the ships, routes, and systems, and refuses a save where they do not. Same-tick events therefore keep their exact order across a save and load, and a save and load round trip is byte-identical in the full state dump, with nothing ignored.
 
-- Saves are written atomically: write a temporary file, flush it, then swap it into place, keeping the previous file as a backup.
-- The game autosaves on dispatch, on arrival, every 60 real seconds, and on quit. The player can also save to named slots.
-- An older save version is migrated on load or refused with a clear message. It is never loaded half-way.
+Debug permission (section 13) is never saved.
+
+### 11.2 Writing and loading
+
+- **Atomic write.** A save is written to a temporary file (`name.json.tmp`), flushed to disk, then swapped into place, keeping the previous file as the backup (`name.json.bak`). If any step fails, the previous save and its backup are unchanged, and only the temporary file that write made is removed.
+- **Checksum.** Every save carries a SHA-256 checksum of its own text. A file whose checksum does not match is treated as damaged.
+- **Damaged saves.** A save that is cut short, unreadable, fails its checksum, or whose contents do not fit together is damaged. The game then loads the backup instead and tells the player both what was wrong and that the backup (with its date) was loaded. The damaged file is kept under a new name (`name.json.damaged-YYYYMMDD-HHMMSS`) and never deleted, so the next save starts a fresh main file and the good backup stays. If the backup cannot be loaded either, nothing is loaded and no file is changed.
+- **Refused saves.** Only damage falls back to the backup. A save from a newer or unknown format version, or one that uses a commodity, ship class, or drive the current tuning file no longer defines, is refused with a clear message and changes nothing; the backup is not tried.
+- **Versions.** An older format version is converted step by step on load (a migration hook; format 1 is the first). A save is never loaded half-way: the game is rebuilt separately and handed over only when every step succeeds.
+- **Tuning on load.** A save loads with the current tuning file. Prices, rates, stock limits, and caps follow it; in-flight voyages keep their locked terms and arrival ticks. If a replenish, re-roll, or restock interval changed, the next market event is rescheduled under the new interval, but nothing is ever granted for time already passed: no extra replenishment, re-roll, or restock from before the load. Lowering `notifications.keepNewest` trims the oldest notifications on load.
+- **Slots.** Each game has a current slot. Autosaves and the quit save write to it. "Save as" writes a new named slot, which becomes the current slot (a failed "Save as" keeps the old one). Slot names use letters, digits, spaces, `-`, and `_`, up to 64 characters. Starting a new game under a name that already exists is refused. How a new game is named is decided in session 17.
+- **Autosave.** The game autosaves on every dispatch, every arrival, every 60 real seconds, and on quit. The player can also save at any time.
+- **Save warning.** If a save fails, the game keeps running and shows a warning with the reason. The warning stays visible until a save succeeds.
 
 ### 11.3 Offline catch-up
 
-- The simulation continues while the game is closed. On opening a save that was running, elapsed game time = real time since the save timestamp x the saved speed, and the simulation advances by that amount through the normal event queue.
+- The simulation continues while the game is closed. On opening a save that was running, elapsed game time = real milliseconds since the save timestamp x the saved speed (1 tick per real millisecond at 1x), and the simulation advances by that amount through the normal `Advance` path and event queue. The same rule handles waking from sleep (section 3.2).
 - A paused save stays paused and advances nothing.
 - Deliveries, replenishment, in-system income, automated departures, and later arrivals are processed in chronological order.
-- The player sees a short return summary: deliveries, earnings, ships needing attention.
-- The catch-up result and the new timestamp are saved together in one atomic write before the player gets control, so loading twice cannot pay twice.
+- **Return summary.** The player sees a short return summary: every delivery made while away, voyage payouts, in-system income, supplies bought, and the net change in credits, plus the ships needing attention. Payouts + in-system income - supplies bought always equals the net change, which always equals the change in credits exactly. **Ships needing attention** are ships blocked on their route (with the route's reason) and docked ships with no active route and no in-system transport (idle, or with a paused route). The summary panel is shown only when the time away is 5 real minutes or more.
+- The catch-up result and the new timestamp are saved together in one atomic write before the player gets control, so loading twice cannot pay twice. If that save fails, the player still gets the caught-up game, with the save warning (section 11.2); the file on disk is unchanged, so reopening it cannot pay twice.
 - If the system clock has moved backward, elapsed time is treated as zero and the timestamp is reset. Game time never runs backward.
+- There is no cap on offline time. A very long absence takes real seconds to catch up (session 10 measured 30 real days at 5x; see `docs/progress.md`).
 
 ### 11.4 Fresh and demo saves
 
@@ -410,6 +431,7 @@ One JSON file (a plain text data format), at `game/Assets/StreamingAssets/tuning
 - **drives:** per tier speed, price, fuel kg per tonne-ly.
 - **shipyards:** stock-limit ranges, restock interval, restock amount (default 1), local price variation (section 7.1).
 - **automation:** recheck behaviour limits.
+- **notifications:** `keepNewest`, how many notifications are kept (default 200, at least 1). When there are more, the oldest are dropped, while playing and on load. Delivery receipts are never trimmed.
 
 Rules:
 
@@ -430,9 +452,11 @@ Balance targets for the default values (the agent tunes toward these and reports
 ## 13. Debug skip
 
 - "Skip to next arrival" exists only in the Unity Editor and in Development Builds, and only when debug mode is explicitly switched on.
-- It is enforced in two places: the simulation command handler rejects the command unless debug capability was granted when the simulation was created, and the interface does not create the button otherwise. In a normal build the capability is compiled out and cannot be granted.
+- It is enforced in two places: the simulation command handler rejects the command unless debug capability was granted when the simulation was created, and the interface does not create the button otherwise. In a normal build the capability is compiled out and cannot be granted: the only way to make one exists only when Unity's `DEBUG` symbol is defined, which Unity sets in the Editor and in Development Builds only.
 - It jumps to the earliest pending arrival tick, processing every event in between and every arrival at that tick, through the normal `Advance` path.
-- The button is disabled when nothing is in flight.
+- It is allowed while paused and never unpauses.
+- The permission is never saved. A loaded game has debug permission only if the code that loads it grants it.
+- The button is disabled when nothing is in flight; the command, if sent anyway, is refused and changes nothing.
 - The normal Windows build has no player-triggered time jump of any kind.
 
 ## 14. Acceptance
@@ -447,7 +471,7 @@ Drive math (the table in 3.3); capacity and provisioning; competing claims on 80
 
 ### 14.3 Save tests
 
-Running and paused saves, including one made mid-transit. Run the same elapsed game time three ways (ordinary simulation, offline catch-up, debug stepping) and compare balances, fleet positions, port stock, and route state: they must match exactly. Reopen a settled save and confirm no second payment. Backward clock change.
+Running and paused saves, including one made mid-transit. Run the same elapsed game time three ways (ordinary simulation, offline catch-up, debug stepping) and compare balances, fleet positions, port stock, and route state: they must match exactly. Reopen a settled save and confirm no second payment. Backward clock change. Also: a save and load round trip is byte-identical; a damaged or cut-short save is refused clearly and the backup loads; a newer or unknown format is refused and changes nothing; an edited tuning file changes prices and limits but not locked voyages; a changed interval grants nothing for time already passed (shorter and longer); a failed write leaves the previous save intact; sleep catch-up and closed-game catch-up over the same gap end byte-identical; the return summary adds up to the change in credits; debug skip is refused without the capability. Tests write saves only to a temporary folder, never the real save folder.
 
 ### 14.4 Real-time timing test (Eli, in the normal Windows build)
 

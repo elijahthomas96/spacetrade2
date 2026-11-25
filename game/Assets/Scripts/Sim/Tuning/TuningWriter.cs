@@ -108,7 +108,9 @@ namespace SpaceTrade.Sim.Tuning
                     .Add("priceRollMinPercent", t.Shipyards.PriceRollMinPercent)
                     .Add("priceRollMaxPercent", t.Shipyards.PriceRollMaxPercent))
                 .Add("automation", new JsonObjectBuilder()
-                    .Add("recheckMinIntervalDays", t.Automation.RecheckMinIntervalDays));
+                    .Add("recheckMinIntervalDays", t.Automation.RecheckMinIntervalDays))
+                .Add("notifications", new JsonObjectBuilder()
+                    .Add("keepNewest", t.Notifications.KeepNewest));
             return root.ToString();
         }
 

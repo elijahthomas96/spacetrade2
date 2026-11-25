@@ -30,6 +30,32 @@ namespace SpaceTrade.Sim.Events
             return _pending.RemoveWhere(e => match(e.Event));
         }
 
+        /// <summary>The scheduling counter: the ordering number the next scheduled event will get.</summary>
+        internal long NextSequence => _nextSequence;
+
+        /// <summary>Every pending event in processing order.</summary>
+        internal IEnumerable<ScheduledEvent> Pending => _pending;
+
+        /// <summary>
+        /// Puts back saved events with their exact ordering numbers and the saved counter, so a loaded
+        /// game orders same-tick events exactly as the saved one would. Only for an empty queue.
+        /// </summary>
+        internal void Restore(IEnumerable<ScheduledEvent> events, long nextSequence)
+        {
+            if (_pending.Count > 0 || _nextSequence != 0) throw new InvalidOperationException("Events can only be restored into an empty queue.");
+            if (nextSequence < 0) throw new ArgumentOutOfRangeException(nameof(nextSequence), nextSequence, "The scheduling counter cannot be negative.");
+            var seen = new HashSet<long>();
+            foreach (var e in events)
+            {
+                if (e.Event == null) throw new ArgumentException("A saved event is missing.");
+                if (e.Sequence < 0 || e.Sequence >= nextSequence)
+                    throw new ArgumentException($"Event ordering number {e.Sequence} is outside 0 to {nextSequence - 1}.");
+                if (!seen.Add(e.Sequence)) throw new ArgumentException($"Event ordering number {e.Sequence} appears twice.");
+                _pending.Add(e);
+            }
+            _nextSequence = nextSequence;
+        }
+
         internal bool TryDequeueDueBy(long tick, out ScheduledEvent next)
         {
             if (_pending.Count == 0 || _pending.Min.Tick > tick)

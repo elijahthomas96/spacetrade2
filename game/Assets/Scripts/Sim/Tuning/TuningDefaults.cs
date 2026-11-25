@@ -129,6 +129,10 @@ namespace SpaceTrade.Sim.Tuning
                 {
                     RecheckMinIntervalDays = 1,
                 },
+                Notifications = new NotificationTuning
+                {
+                    KeepNewest = 200,
+                },
             };
         }
 

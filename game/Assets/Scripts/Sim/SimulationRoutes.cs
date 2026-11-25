@@ -15,8 +15,21 @@ namespace SpaceTrade.Sim
     {
         private readonly List<Notification> _notifications = new List<Notification>();
 
-        /// <summary>Every notification raised, oldest first.</summary>
+        /// <summary>The newest notifications (at most the tuning's notifications.keepNewest), oldest first.</summary>
         public IReadOnlyList<Notification> Notifications => _notifications;
+
+        private void Notify(Notification notification)
+        {
+            _notifications.Add(notification);
+            TrimNotifications();
+        }
+
+        /// <summary>Drops the oldest notifications beyond the tuning's notifications.keepNewest. Receipts are never dropped.</summary>
+        internal void TrimNotifications()
+        {
+            int keep = Market.Tuning.Notifications.KeepNewest;
+            if (_notifications.Count > keep) _notifications.RemoveRange(0, _notifications.Count - keep);
+        }
 
         private string SystemName(int id) => Market.Galaxy.Systems[id].Name;
 
@@ -254,7 +267,7 @@ namespace SpaceTrade.Sim
             route.BlockedForTopUp = forTopUp;
             route.LastCheckTick = CurrentTick;
             if (!wasBlocked)
-                _notifications.Add(new Notification(CurrentTick, NotificationKind.RouteBlocked, ship.Id, $"{ship.Name} is blocked at {SystemName(ship.DockedSystemId.Value)}. {reason}"));
+                Notify(new Notification(CurrentTick, NotificationKind.RouteBlocked, ship.Id, $"{ship.Name} is blocked at {SystemName(ship.DockedSystemId.Value)}. {reason}"));
         }
 
         /// <summary>

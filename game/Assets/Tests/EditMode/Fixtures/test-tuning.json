@@ -319,5 +319,8 @@
   },
   "automation": {
     "recheckMinIntervalDays": 1
+  },
+  "notifications": {
+    "keepNewest": 200
   }
 }

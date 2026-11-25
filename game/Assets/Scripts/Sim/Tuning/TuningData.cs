@@ -21,6 +21,7 @@ namespace SpaceTrade.Sim.Tuning
         public List<DriveTuning> Drives = new List<DriveTuning>();
         public ShipyardTuning Shipyards = new ShipyardTuning();
         public AutomationTuning Automation = new AutomationTuning();
+        public NotificationTuning Notifications = new NotificationTuning();
 
         public IndustryTuning FindIndustry(string id) => Industries.Find(x => x.Id == id);
         public CommodityTuning FindCommodity(string id) => Commodities.Find(x => x.Id == id);
@@ -171,5 +172,11 @@ namespace SpaceTrade.Sim.Tuning
     public sealed class AutomationTuning
     {
         public int RecheckMinIntervalDays;
+    }
+
+    public sealed class NotificationTuning
+    {
+        /// <summary>How many notifications are kept, newest first; older ones are dropped. Receipts are never dropped.</summary>
+        public int KeepNewest;
     }
 }

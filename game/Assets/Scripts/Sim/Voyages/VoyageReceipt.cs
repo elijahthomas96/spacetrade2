@@ -67,6 +67,27 @@ namespace SpaceTrade.Sim.Voyages
             SuppliesCost = cost;
         }
 
+        /// <summary>A receipt read back from a save, with every stored field as it was written.</summary>
+        internal VoyageReceipt(int shipId, string shipName, int originId, int destinationId, long departureTick, long arrivalTick,
+            IEnumerable<LockedFreight> freight, int passengers, long farePerPassenger, long freightRevenue, long fareRevenue, IEnumerable<ConsumedSupply> supplies)
+        {
+            ShipId = shipId;
+            ShipName = shipName;
+            OriginId = originId;
+            DestinationId = destinationId;
+            DepartureTick = departureTick;
+            ArrivalTick = arrivalTick;
+            _freight = new List<LockedFreight>(freight);
+            Passengers = passengers;
+            FarePerPassenger = farePerPassenger;
+            FreightRevenue = freightRevenue;
+            FareRevenue = fareRevenue;
+            _supplies = new List<ConsumedSupply>(supplies);
+            long cost = 0;
+            foreach (var s in _supplies) cost = checked(cost + s.Cost);
+            SuppliesCost = cost;
+        }
+
         /// <summary>Every stored value in a fixed text layout, for comparing states exactly.</summary>
         public string DescribeState()
         {

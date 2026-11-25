@@ -82,8 +82,8 @@ namespace SpaceTrade.Sim.Tests
             var (removed, added) = Diff(before, sim.DescribeState());
             Assert.AreEqual(3, removed.Count, string.Join("\n", removed));
             Assert.AreEqual(4, added.Count, string.Join("\n", added));
-            Assert.AreEqual("tick=0 speed=X1 paused=False credits=5000000 suppliesBought=0 nextShip=2", removed.Single(l => l.StartsWith("tick=")));
-            Assert.AreEqual("tick=0 speed=X1 paused=False credits=1745000 suppliesBought=0 nextShip=3", added.Single(l => l.StartsWith("tick=")));
+            Assert.AreEqual("tick=0 speed=X1 paused=False credits=5000000 suppliesBought=0 inSystemIncome=0 nextShip=2", removed.Single(l => l.StartsWith("tick=")));
+            Assert.AreEqual("tick=0 speed=X1 paused=False credits=1745000 suppliesBought=0 inSystemIncome=0 nextShip=3", added.Single(l => l.StartsWith("tick=")));
             Assert.AreEqual("yardstock 1 ship bulk_freighter count=2 limitRoll=100", removed.Single(l => l.StartsWith("yardstock")));
             Assert.AreEqual("yardstock 1 ship bulk_freighter count=1 limitRoll=100", added.Single(l => l.StartsWith("yardstock")));
             Assert.AreNotEqual(removed.Single(l => l.StartsWith("yards rng=")), added.Single(l => l.StartsWith("yards rng=")),

@@ -64,7 +64,7 @@ namespace SpaceTrade.Sim.Tests
             Assert.AreEqual(without.Random.S1, withYards.Random.S1);
             Assert.AreEqual(without.Random.S2, withYards.Random.S2);
             Assert.AreEqual(without.Random.S3, withYards.Random.S3);
-            string MarketLines(Market m) => string.Join("\n", m.DescribeState().Split('\n').Where(l => !l.StartsWith("yard")));
+            string MarketLines(Market m) => string.Join("\n", m.DescribeState().Split('\n').Where(l => !l.StartsWith("yard") && !l.StartsWith("system ")));
             Assert.AreEqual(MarketLines(without), MarketLines(withYards));
         }
 

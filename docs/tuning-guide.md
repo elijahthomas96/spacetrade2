@@ -197,3 +197,18 @@ A list. Each drive tier has:
 | Field | Unit | Meaning |
 |---|---|---|
 | `recheckMinIntervalDays` | game days | A ship on an automated route that is waiting for a load is checked again when stock at its stop or next stop replenishes, at most once per this many days; a replenishment that comes too soon is checked at the earliest allowed day instead, so it is never missed. A ship blocked only because it cannot pay for its supplies is checked again when credits rise, with the same limit. 0 means check every time. |
+
+## notifications
+
+| Field | Unit | Meaning |
+|---|---|---|
+| `keepNewest` | notifications | How many notifications (arrivals, blocked routes) the game keeps. When there are more, the oldest are dropped. Default 200, at least 1; 0 or less is an error naming `notifications.keepNewest`. |
+
+- **Lowering it trims old saves too.** When a save loads, any notifications beyond `keepNewest` are dropped, oldest first. Raising it later does not bring them back.
+- **Delivery receipts are never trimmed.** Every receipt is kept and saved, whatever this number is.
+
+## Editing tuning with saves you already have
+
+- Saves load with the current tuning file. Prices, rates, stock limits, and caps follow your edits at once; voyages already in flight keep their agreed terms and arrival dates.
+- If you change `replenishIntervalDays` (commodities or passengers), `rerollIntervalDays`, or `restockIntervalDays`, the next replenishment, re-roll, or restock in an existing save moves to the new schedule (still counted from the start of that game). Nothing is granted for time already passed: shortening an interval never hands out a catch-up replenishment, re-roll, or restock for the days before you loaded.
+- If you remove a commodity, ship class, or drive that a save uses, that save is refused with a message saying what is missing. Put it back to load the save. The save file is not changed.

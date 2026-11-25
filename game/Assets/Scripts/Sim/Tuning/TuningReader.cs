@@ -31,6 +31,7 @@ namespace SpaceTrade.Sim.Tuning
                 Drives = ReadList(r, "drives", ReadDrive),
                 Shipyards = ReadShipyards(r.Child("shipyards")),
                 Automation = ReadAutomation(r.Child("automation")),
+                Notifications = ReadNotifications(r.Child("notifications")),
             };
             r.RejectUnknownFields();
             return t;
@@ -217,6 +218,16 @@ namespace SpaceTrade.Sim.Tuning
             };
             r.RejectUnknownFields();
             return a;
+        }
+
+        private static NotificationTuning ReadNotifications(ObjectReader r)
+        {
+            var n = new NotificationTuning
+            {
+                KeepNewest = r.Int("keepNewest", 1, 1_000_000),
+            };
+            r.RejectUnknownFields();
+            return n;
         }
     }
 }

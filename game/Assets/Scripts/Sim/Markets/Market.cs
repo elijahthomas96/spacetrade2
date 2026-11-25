@@ -161,19 +161,96 @@ namespace SpaceTrade.Sim.Markets
         public void ReplaceTuning(TuningData tuning)
         {
             if (tuning == null) throw new ArgumentNullException(nameof(tuning));
+            var missing = MissingFromTuning(tuning);
+            if (missing.Count > 0) throw new ArgumentException(missing[0], nameof(tuning));
+            Tuning = tuning;
+        }
+
+        /// <summary>Every commodity, ship class, and drive this market uses that <paramref name="tuning"/> does not define, one message each.</summary>
+        internal List<string> MissingFromTuning(TuningData tuning)
+        {
+            var missing = new List<string>();
             foreach (var id in _supplies.Concat(_demands).Select(x => x.CommodityId).Distinct())
                 if (tuning.FindCommodity(id) == null)
-                    throw new ArgumentException($"The market trades commodity \"{id}\", which the new tuning does not define.", nameof(tuning));
+                    missing.Add($"The market trades commodity \"{id}\", which the new tuning does not define.");
             foreach (var yard in _yards)
             {
                 foreach (var s in yard.Ships)
                     if (tuning.FindShip(s.ItemId) == null)
-                        throw new ArgumentException($"The shipyard at {SystemName(yard.SystemId)} stocks ship class \"{s.ItemId}\", which the new tuning does not define.", nameof(tuning));
+                        missing.Add($"The shipyard at {SystemName(yard.SystemId)} stocks ship class \"{s.ItemId}\", which the new tuning does not define.");
                 foreach (var s in yard.Drives)
                     if (tuning.FindDrive(s.ItemId) == null)
-                        throw new ArgumentException($"The shipyard at {SystemName(yard.SystemId)} stocks drive \"{s.ItemId}\", which the new tuning does not define.", nameof(tuning));
+                        missing.Add($"The shipyard at {SystemName(yard.SystemId)} stocks drive \"{s.ItemId}\", which the new tuning does not define.");
             }
-            Tuning = tuning;
+            return missing;
+        }
+
+        /// <summary>
+        /// Rebuilds a saved market exactly: stock levels, rolls, both generators, the opening-rate hold, and every yard.
+        /// Distances come from the stored galaxy. Throws <see cref="ArgumentException"/> when the parts do not fit together.
+        /// </summary>
+        internal static Market Restore(Galaxy galaxy, TuningData tuning, long createdTick, SeededRandom random, SeededRandom yardRandom, bool holdsOpeningRates,
+            IEnumerable<CommodityStock> supplies, IEnumerable<CommodityStock> demands, IEnumerable<(int origin, string commodity, int destination, int roll)> offers,
+            IEnumerable<(int origin, int destination, int waiting, int roll)> pools, IEnumerable<ProvisionRoll> provisionRolls, IEnumerable<Shipyard> yards)
+        {
+            if (createdTick < 0) throw new ArgumentException($"The market's creation tick {createdTick} is negative.");
+            var m = new Market(galaxy, tuning, createdTick, random, yardRandom) { HoldsOpeningRates = holdsOpeningRates };
+            int count = galaxy.Systems.Count;
+            void CheckSystem(int id, string what)
+            {
+                if (id < 0 || id >= count) throw new ArgumentException($"{what} names system {id}, but the galaxy has systems 0 to {count - 1}.");
+            }
+            void CheckTonnes(int tonnes, string what)
+            {
+                if (tonnes < 0) throw new ArgumentException($"{what} has {tonnes} t.");
+            }
+
+            foreach (var s in supplies) { CheckSystem(s.SystemId, "A supply"); CheckTonnes(s.Tonnes, $"Supply of {s.CommodityId} at system {s.SystemId}"); m.AddStock(m._supplies, m._supplyIndex, s); }
+            foreach (var d in demands) { CheckSystem(d.SystemId, "A demand"); CheckTonnes(d.Tonnes, $"Demand for {d.CommodityId} at system {d.SystemId}"); m.AddStock(m._demands, m._demandIndex, d); }
+            foreach (var o in offers)
+            {
+                CheckSystem(o.origin, "A freight offer");
+                CheckSystem(o.destination, "A freight offer");
+                if (m.FindSupply(o.origin, o.commodity) == null || m.FindDemand(o.destination, o.commodity) == null || o.origin == o.destination)
+                    throw new ArgumentException($"The freight offer for {o.commodity} from system {o.origin} to {o.destination} has no matching supply and demand.");
+                var offer = new FreightOffer(o.origin, o.commodity, o.destination, galaxy.DistanceMilliLy(o.origin, o.destination), o.roll);
+                m._offerIndex.Add((o.origin, o.commodity, o.destination), offer);
+                m._offers.Add(offer);
+            }
+            foreach (var s in m._supplies)
+            foreach (var d in m._demands)
+                if (d.CommodityId == s.CommodityId && d.SystemId != s.SystemId && m.FindOffer(s.SystemId, s.CommodityId, d.SystemId) == null)
+                    throw new ArgumentException($"The freight offer for {s.CommodityId} from system {s.SystemId} to {d.SystemId} is missing.");
+            foreach (var p in pools)
+            {
+                CheckSystem(p.origin, "A passenger pool");
+                CheckSystem(p.destination, "A passenger pool");
+                if (p.origin == p.destination) throw new ArgumentException($"A passenger pool goes from system {p.origin} to itself.");
+                if (p.waiting < 0) throw new ArgumentException($"The passenger pool from system {p.origin} to {p.destination} has {p.waiting} waiting.");
+                var pool = new PassengerPool(p.origin, p.destination, galaxy.DistanceMilliLy(p.origin, p.destination), p.waiting, p.roll);
+                m._poolIndex.Add((p.origin, p.destination), pool);
+                m._pools.Add(pool);
+            }
+            if (m._pools.Count != count * (count - 1)) throw new ArgumentException($"The market has {m._pools.Count} passenger pools; a galaxy of {count} systems needs {count * (count - 1)}.");
+            foreach (var r in provisionRolls)
+            {
+                if (r.SystemId != m._provisionRolls.Count) throw new ArgumentException($"Provision rolls must list systems 0 to {count - 1} in order; found system {r.SystemId} at position {m._provisionRolls.Count}.");
+                m._provisionRolls.Add(r);
+            }
+            if (m._provisionRolls.Count != count) throw new ArgumentException($"The market has provision rolls for {m._provisionRolls.Count} systems; the galaxy has {count}.");
+            foreach (var yard in yards)
+            {
+                CheckSystem(yard.SystemId, "A shipyard");
+                if (!galaxy.Systems[yard.SystemId].HasShipyard) throw new ArgumentException($"System {yard.SystemId} has a shipyard entry but no shipyard.");
+                if (m.FindShipyard(yard.SystemId) != null) throw new ArgumentException($"System {yard.SystemId} has two shipyard entries.");
+                foreach (var s in yard.Ships.Concat(yard.Drives))
+                    if (s.Count < 0 || s.LimitRollPercent < 0 || s.LimitRollPercent > 100)
+                        throw new ArgumentException($"The shipyard at system {yard.SystemId} has {s.Count} of {s.ItemId} with limit roll {s.LimitRollPercent}.");
+                m._yards.Add(yard);
+            }
+            foreach (var s in galaxy.Systems)
+                if (s.HasShipyard && m.FindShipyard(s.Id) == null) throw new ArgumentException($"System {s.Id} has a shipyard but no shipyard entry.");
+            return m;
         }
 
         // ---- Shipyards ----
@@ -507,6 +584,9 @@ namespace SpaceTrade.Sim.Markets
             sb.Append("seed=").Append(Galaxy.Seed).Append(" start=").Append(Galaxy.StartSystemId)
               .Append(" created=").Append(CreatedTick).Append(" openingHeld=").Append(HoldsOpeningRates)
               .Append(" rng=").Append(Random.S0).Append(',').Append(Random.S1).Append(',').Append(Random.S2).Append(',').Append(Random.S3).Append('\n');
+            foreach (var sys in Galaxy.Systems)
+                sb.Append("system ").Append(sys.Id).Append(" \"").Append(sys.Name).Append("\" x=").Append(sys.XMilliLy).Append(" y=").Append(sys.YMilliLy)
+                  .Append(" pop=").Append(sys.PopulationMillions).Append(" industries=[").Append(string.Join(",", sys.IndustryIds)).Append("] yard=").Append(sys.HasShipyard).Append('\n');
             foreach (var s in _supplies) sb.Append("supply ").Append(s.SystemId).Append(' ').Append(s.CommodityId).Append(' ').Append(s.Tonnes).Append('\n');
             foreach (var d in _demands) sb.Append("demand ").Append(d.SystemId).Append(' ').Append(d.CommodityId).Append(' ').Append(d.Tonnes).Append('\n');
             foreach (var o in _offers) sb.Append("offer ").Append(o.OriginId).Append(' ').Append(o.CommodityId).Append(' ').Append(o.DestinationId).Append(" roll=").Append(o.RateRollPercent).Append('\n');

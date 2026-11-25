@@ -34,6 +34,9 @@ namespace SpaceTrade.Sim
         /// <summary>Every credit ever spent buying supplies, through Provision or a dispatch top-up (spec 6.7).</summary>
         public long SuppliesBoughtTotal { get; private set; }
 
+        /// <summary>Every credit ever earned from in-system transport (spec 10, 11.3).</summary>
+        public long InSystemIncomeTotal { get; private set; }
+
         /// <summary>The player's fleet, in ship-id order. Ids start at 1.</summary>
         public IReadOnlyList<Ship> Ships => _ships;
 
@@ -42,11 +45,13 @@ namespace SpaceTrade.Sim
         /// <summary>Every delivery receipt, in the order the ships arrived.</summary>
         public IReadOnlyList<VoyageReceipt> Receipts => _receipts;
 
-        public Simulation(long startTick = 0, ClockSpeed speed = ClockSpeed.X1, bool paused = false)
+        /// <param name="debug">Debug permission (spec 13), or null. It can only be granted when the simulation is created.</param>
+        public Simulation(long startTick = 0, ClockSpeed speed = ClockSpeed.X1, bool paused = false, DebugCapability debug = null)
         {
             if (startTick < 0) throw new ArgumentOutOfRangeException(nameof(startTick), startTick, "Start tick cannot be negative.");
             if (!ClockSpeeds.IsValid(speed)) throw new ArgumentOutOfRangeException(nameof(speed), (int)speed, "Speed must be 1x, 3x, or 5x.");
             Clock = new SimClock(startTick, speed, paused);
+            _debug = debug;
         }
 
         /// <summary>Installs the market and schedules each system's first replenishment event.</summary>
@@ -210,6 +215,7 @@ namespace SpaceTrade.Sim
                 throw new InvalidOperationException($"Ship {shipId}'s in-system pay is due on whole days from tick {since}, not at tick {CurrentTick}.");
             var shipClass = Market.Tuning.FindShip(ship.ClassId) ?? throw new InvalidOperationException($"Ship {shipId}'s class \"{ship.ClassId}\" is not in the tuning.");
             Credits = checked(Credits + shipClass.InSystemDailyIncome);
+            InSystemIncomeTotal = checked(InSystemIncomeTotal + shipClass.InSystemDailyIncome);
             Schedule(checked(CurrentTick + GameTime.TicksPerDay), new InSystemIncomeEvent(shipId));
             OnCreditsRose();
         }
@@ -236,7 +242,7 @@ namespace SpaceTrade.Sim
             ship.DockedSystemId = voyage.DestinationId;
             var receipt = new VoyageReceipt(ship, voyage, consumed);
             _receipts.Add(receipt);
-            _notifications.Add(new Notification(CurrentTick, NotificationKind.Arrival, ship.Id,
+            Notify(new Notification(CurrentTick, NotificationKind.Arrival, ship.Id,
                 $"{ship.Name} arrived at {Market.Galaxy.Systems[voyage.DestinationId].Name}. Net profit {Format.Credits(receipt.NetProfit)} credits."));
             if (voyage.Payout > 0) OnCreditsRose();
             OnRouteShipDocked(ship);
@@ -259,7 +265,8 @@ namespace SpaceTrade.Sim
         {
             var sb = new StringBuilder();
             sb.Append("tick=").Append(Clock.Tick).Append(" speed=").Append(Clock.Speed).Append(" paused=").Append(Clock.IsPaused)
-              .Append(" credits=").Append(Credits).Append(" suppliesBought=").Append(SuppliesBoughtTotal).Append(" nextShip=").Append(_nextShipId).Append('\n');
+              .Append(" credits=").Append(Credits).Append(" suppliesBought=").Append(SuppliesBoughtTotal).Append(" inSystemIncome=").Append(InSystemIncomeTotal)
+              .Append(" nextShip=").Append(_nextShipId).Append('\n');
             foreach (var s in _ships) sb.Append(s.DescribeState()).Append('\n');
             foreach (var r in _receipts) sb.Append(r.DescribeState()).Append('\n');
             foreach (var n in _notifications) sb.Append(n.DescribeState()).Append('\n');
