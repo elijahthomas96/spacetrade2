@@ -19,6 +19,35 @@ namespace SpaceTrade.Sim.Tests
             Assert.AreEqual(expected, IntMath.RoundedSqrt(n));
         }
 
+        [TestCase(0, 7, 0)]
+        [TestCase(1, 7, 1)]
+        [TestCase(7, 7, 1)]
+        [TestCase(8, 7, 2)]
+        [TestCase(8_387_280_000, 1_000_000, 8_388)]
+        public void DivideCeiling(long num, long den, long expected)
+        {
+            Assert.AreEqual(expected, IntMath.DivideCeiling(num, den));
+        }
+
+        [TestCase(3_360, "3.36 t")]
+        [TestCase(20_000, "20 t")]
+        [TestCase(8_388, "8.388 t")]
+        [TestCase(1_500, "1.5 t")]
+        [TestCase(5, "0.005 t")]
+        [TestCase(1_234_567, "1,234.567 t")]
+        public void FormatTonnes(long kg, string expected)
+        {
+            Assert.AreEqual(expected, Format.Tonnes(kg));
+        }
+
+        [Test]
+        public void FormatCredits()
+        {
+            Assert.AreEqual("43,733", Format.Credits(43_733));
+            Assert.AreEqual("-5,665", Format.Credits(-5_665));
+            Assert.AreEqual("0", Format.Credits(0));
+        }
+
         [Test]
         public void FloorSqrt_IsExactAcrossRange()
         {

@@ -6,14 +6,19 @@ namespace SpaceTrade.Sim.Tests
 {
     public class MarketMathTests
     {
-        [TestCase(5, 2, 3)]    // 2.5 rounds up
-        [TestCase(3, 2, 2)]    // 1.5 rounds up
+        [TestCase(5, 2, 3)]    // 2.5 rounds away from zero
+        [TestCase(3, 2, 2)]    // 1.5 rounds away from zero
         [TestCase(7, 3, 2)]    // 2.33 rounds down
         [TestCase(8, 3, 3)]    // 2.67 rounds up
         [TestCase(1, 4, 0)]    // 0.25 rounds down
         [TestCase(0, 9, 0)]
         [TestCase(6, 3, 2)]
-        public void DivideRounded_NearestWithHalvesUp(long num, long den, long expected)
+        [TestCase(-5, 2, -3)]  // -2.5 rounds away from zero
+        [TestCase(-3, 2, -2)]  // -1.5 rounds away from zero
+        [TestCase(-7, 3, -2)]  // -2.33
+        [TestCase(-8, 3, -3)]  // -2.67
+        [TestCase(-1, 4, 0)]   // -0.25
+        public void DivideRounded_NearestWithHalvesAwayFromZero(long num, long den, long expected)
         {
             Assert.AreEqual(expected, IntMath.DivideRounded(num, den));
         }

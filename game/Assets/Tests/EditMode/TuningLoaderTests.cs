@@ -149,6 +149,58 @@ namespace SpaceTrade.Sim.Tests
             AssertFellBackWithError(TuningLoader.LoadText(text), "provisions.combinedModifierMinPercent");
         }
 
+        // ---- Starter range (spec 12) ----
+
+        [Test]
+        public void StarterRange_Defaults_CanFlyMaxHop()
+        {
+            var t = TestTuning.Load();
+            var needs = Ships.ProvisioningMath.Compute(t, t.FindShip("courier"), t.FindDrive("alcubierre_1_50"), t.Galaxy.MaxHopMilliLy, 0, 0, 0, 0);
+            // 7 ly at 1.5c = 1,680 days. 2 crew: food 2,016 kg, water 1,344 kg. Mass 60,000 + 3,360 + 200 = 63,560.
+            // Fuel 7 x 63.56 x 22 = 9,788.24 -> 9,789 kg, within the 20 t tank. Food and water 3.36 t, within the 30 t hold.
+            Assert.AreEqual(3_360, needs.HoldUsedKg);
+            Assert.AreEqual(63_560, needs.LoadedMassKg);
+            Assert.AreEqual(9_789, needs.FuelRequiredKg);
+            TestContext.WriteLine($"Starter courier over maxHop: fuel {needs.FuelRequiredKg} kg of 20,000; food and water {needs.HoldUsedKg} kg of 30,000.");
+        }
+
+        [Test]
+        public void StarterRange_TankTooSmall_NamesField_FallsBackToDefaults()
+        {
+            var text = TestTuning.With(TestTuning.Text(), "\"tankTonnes\": 20,", "\"tankTonnes\": 9,");
+            var result = TuningLoader.LoadText(text);
+            AssertFellBackWithError(result, "ships[courier].tankTonnes");
+            string error = result.Errors.First(e => e.StartsWith("ships[courier].tankTonnes"));
+            TestContext.WriteLine(error);
+            StringAssert.Contains("needs 9.789 t of fuel to fly galaxy.maxHopMilliLy (7000), but its tank holds 9 t", error);
+        }
+
+        [Test]
+        public void StarterRange_TankJustBigEnough_IsAccepted()
+        {
+            var text = TestTuning.With(TestTuning.Text(), "\"tankTonnes\": 20,", "\"tankTonnes\": 10,");
+            var result = TuningLoader.LoadText(text);
+            Assert.IsEmpty(result.Errors, string.Join("\n", result.Errors));
+        }
+
+        [Test]
+        public void StarterRange_HoldTooSmall_NamesField_FallsBackToDefaults()
+        {
+            var text = TestTuning.With(TestTuning.Text(), "\"holdTonnes\": 30,", "\"holdTonnes\": 3,");
+            var result = TuningLoader.LoadText(text);
+            AssertFellBackWithError(result, "ships[courier].holdTonnes");
+            TestContext.WriteLine(result.Errors.First(e => e.StartsWith("ships[courier].holdTonnes")));
+            Assert.IsEmpty(TuningLoader.LoadText(TestTuning.With(TestTuning.Text(), "\"holdTonnes\": 30,", "\"holdTonnes\": 4,")).Errors);
+        }
+
+        [Test]
+        public void StarterRange_LongerMaxHop_NamesTank()
+        {
+            // 15 ly: mass 60,000 + 7,200 + 200 = 67,400 kg; fuel 15 x 67.4 x 22 = 22,242 kg, over the 20 t tank.
+            var text = TestTuning.With(TestTuning.Text(), "\"maxHopMilliLy\": 7000", "\"maxHopMilliLy\": 15000");
+            AssertFellBackWithError(TuningLoader.LoadText(text), "ships[courier].tankTonnes");
+        }
+
         [Test]
         public void UnknownReference_NamesField()
         {

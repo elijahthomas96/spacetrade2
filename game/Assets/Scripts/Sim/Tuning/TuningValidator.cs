@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using SpaceTrade.Sim.Ships;
 
 namespace SpaceTrade.Sim.Tuning
 {
@@ -103,6 +104,26 @@ namespace SpaceTrade.Sim.Tuning
             Order("shipyards", "shipStockPerClassMin", y.ShipStockPerClassMin, "shipStockPerClassMax", y.ShipStockPerClassMax);
             Order("shipyards", "driveStockPerTierMin", y.DriveStockPerTierMin, "driveStockPerTierMax", y.DriveStockPerTierMax);
             Order("shipyards", "priceRollMinPercent", y.PriceRollMinPercent, "priceRollMaxPercent", y.PriceRollMaxPercent);
+
+            StarterRange(t, errors);
+        }
+
+        /// <summary>
+        /// The starter ship with the starter drive, a full tank, crew only, and the food and water the
+        /// crew needs, must be able to fly galaxy.maxHopMilliLy (spec 12).
+        /// </summary>
+        private static void StarterRange(TuningData t, List<string> errors)
+        {
+            var shipClass = t.FindShip(t.Start.StarterShipClass);
+            var drive = t.FindDrive(t.Start.StarterDrive);
+            if (shipClass == null || drive == null) return;
+            long hop = t.Galaxy.MaxHopMilliLy;
+            var needs = ProvisioningMath.Compute(t, shipClass, drive, hop, 0, 0, 0, 0);
+            string who = $"the starter ship ({shipClass.Id} with {drive.Id}, crew only)";
+            if (needs.FuelRequiredKg > (long)shipClass.TankTonnes * 1000)
+                errors.Add($"ships[{shipClass.Id}].tankTonnes: {who} needs {Format.Tonnes(needs.FuelRequiredKg)} of fuel to fly galaxy.maxHopMilliLy ({hop}), but its tank holds {shipClass.TankTonnes} t");
+            if (needs.HoldUsedKg > (long)shipClass.HoldTonnes * 1000)
+                errors.Add($"ships[{shipClass.Id}].holdTonnes: {who} needs {Format.Tonnes(needs.HoldUsedKg)} of food and water to fly galaxy.maxHopMilliLy ({hop}), but its hold holds {shipClass.HoldTonnes} t");
         }
 
         private static bool Feeds(IndustryTuning from, IndustryTuning to) => from.Produces.Any(to.Consumes.Contains);

@@ -30,15 +30,26 @@ namespace SpaceTrade.Sim
         }
 
         /// <summary>
-        /// The one rounding rule for prices, rates, fares, and market amounts: divide exactly and
-        /// round to the nearest whole number, with exact halves rounding up. Callers build the whole
-        /// numerator first so the result is rounded once, at the end.
+        /// The one rounding rule (spec 5.5): divide exactly and round to the nearest whole number,
+        /// with exact halves rounding away from zero (2.5 gives 3, -2.5 gives -3). Callers build the
+        /// whole numerator first so the result is rounded once, at the end.
         /// </summary>
         public static long DivideRounded(BigInteger numerator, BigInteger denominator)
         {
+            if (denominator <= 0) throw new ArgumentOutOfRangeException(nameof(denominator), "Denominator must be positive.");
+            BigInteger magnitude = (BigInteger.Abs(numerator) * 2 + denominator) / (denominator * 2);
+            return (long)(numerator < 0 ? -magnitude : magnitude);
+        }
+
+        /// <summary>
+        /// Exact division rounded up, for amounts that must never come out short: supplies a voyage
+        /// needs (spec 6.3). Not a rounding to nearest, so it is not covered by <see cref="DivideRounded"/>.
+        /// </summary>
+        public static long DivideCeiling(BigInteger numerator, BigInteger denominator)
+        {
             if (numerator < 0) throw new ArgumentOutOfRangeException(nameof(numerator), "Numerator cannot be negative.");
             if (denominator <= 0) throw new ArgumentOutOfRangeException(nameof(denominator), "Denominator must be positive.");
-            return (long)((numerator * 2 + denominator) / (denominator * 2));
+            return (long)((numerator + denominator - 1) / denominator);
         }
     }
 }

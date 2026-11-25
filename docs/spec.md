@@ -105,11 +105,11 @@ Generation must guarantee:
 - **Demand** at the destination is finite and replenishes over game time up to a cap.
 - When a galaxy's markets are created, supply and demand start at a tuning percent of their caps (`start.marketStartFill`, 0 to 100, default 100).
 - The amount a ship can load is limited by both supply and demand.
-- The rate per tonne is rolled within a range around `base rate x distance factor`, and re-rolled on a tuning interval (default every 90 game days) using the seeded generator. The save stores the rolled percent; the published rate is worked out from it and the current tuning. Published rates are what the player sees. The rate is locked at dispatch.
+- The rate per tonne is rolled within a range around `base rate x distance factor`, and re-rolled on a tuning interval (default every 90 game days) using the seeded generator. The save stores the rolled percent for each open offer; the published rate is worked out from it and the current tuning. Published rates are what the player sees. At dispatch the rate is locked as a fixed credit amount per tonne (section 6.6), not as a percent, so later tuning edits never change the payout of a voyage in flight.
 
 ### 5.2 Passengers
 
-- A **passenger booking pool** is: origin, destination, passengers waiting, fare per passenger. Pools scale with the populations at both ends and replenish over time. Fares roll the same way freight rates do. Pools start at a tuning percent of their size (`start.marketStartFill`, default 100).
+- A **passenger booking pool** is: origin, destination, passengers waiting, fare per passenger. Pools scale with the populations at both ends and replenish over time. Fares roll the same way freight rates do: the save stores the rolled percent, and at dispatch the fare is locked as a fixed credit amount per passenger. Pools start at a tuning percent of their size (`start.marketStartFill`, default 100).
 
 ### 5.3 Reservations
 
@@ -128,7 +128,9 @@ Every port sells fuel, food, and water. Prices vary by system within tuning rang
 
 ### 5.5 Rounding
 
-Market prices, rates, fares, pool sizes, and starting amounts are calculated exactly from whole numbers and rounded once, at the end, to the nearest whole number, with exact halves rounding up.
+There is one rounding rule. Wherever a figure is rounded to the nearest whole number, it is calculated exactly from whole numbers and rounded once, at the end, with exact halves rounding **away from zero** (2.5 becomes 3, -2.5 becomes -3). This covers market prices, rates, fares, pool sizes, starting amounts, the cost of buying supplies, the share of a supply's cost that a voyage uses, and profit per game year (which can be negative).
+
+Three amounts are rounded up instead, on purpose, because coming out short would be wrong: transit ticks (section 3.3), the real time remaining shown to the player (so a countdown never reaches zero early), and the supplies a voyage needs (section 6.3). These are round-ups, not roundings to the nearest number.
 
 ## 6. Ships and voyages
 
@@ -158,6 +160,9 @@ Every ship uses an Alcubierre drive with a rated speed. Default tiers: **1.5c, 2
 - **Tank:** fuel must fit in the tank.
 - **Berths:** passengers must not exceed berths.
 - A voyage is feasible only if all three fit and the player can pay for any top-up.
+- Supplies needed are rounded up to the whole kilogram, so a ship is never a few grams short.
+- Food and water in the hold and in loaded mass are what will be aboard after topping up: the amount the voyage needs, or more if leftovers from earlier voyages already exceed it. A ship cannot leave leftovers behind.
+- Supply prices are per tonne and supplies are bought by the kilogram: cost = kilograms x price per tonne / 1,000, rounded once (section 5.5).
 
 ### 6.4 New-game start
 
@@ -176,17 +181,23 @@ The player picks a destination, chooses freight and passengers, and reviews a qu
 - Gross revenue (freight plus fares), expected operating costs (supplies the voyage will consume, at their acquisition cost), net profit, and profit per game year.
 - The in-game arrival date and real time at the current speed.
 
-Failures are explained with numbers and a fix, for example "Unload 4 tonnes to make room for drinking water" or "Fuel tank holds 40 t, this voyage needs 46 t".
+Failures are explained with numbers and a fix, for example "Unload 4 tonnes to make room for drinking water" or "Fuel tank holds 40 t, this voyage needs 46 t". For the hold and the tank the fix is the smallest one: the fewest tonnes of freight to unload, or, if no amount of freight is enough, the fewest passengers to drop and then the fewest tonnes to unload with that many passengers.
+
+The Provision button is refused, changing nothing, unless the voyage is otherwise feasible.
 
 ### 6.6 Dispatch
 
 Dispatch is one transaction: validate, reserve freight and demand, book seats, buy any approved top-up, lock the manifest, bookings, drive, destination, and arrival tick, then depart. If any step fails, nothing changes.
+
+The locked terms hold each freight rate (credits per tonne) and the passenger fare (credits per passenger) as fixed credit amounts taken at dispatch, never as a rolled percent. Editing the tuning file never changes the payout of a voyage already in flight.
 
 ### 6.7 Arrival and the receipt
 
 At the arrival tick the ship docks, unloads the contracted freight and passengers, and is paid exactly once at the locked rates. The receipt shows fares, freight revenue, supplies consumed at acquisition cost, elapsed game time, and net profit.
 
 Each expense is counted once. Buying supplies moves credits into on-board inventory at cost; the expense appears on the receipt of the voyage that consumes them, even if they were bought at an earlier stop. Leftover supplies stay aboard with their cost.
+
+Each supply aboard has a quantity and a total cost, so it has one average price. A voyage is charged its share: total cost x kilograms used / kilograms aboard, rounded once. When a voyage uses everything that is left, it is charged everything that is left, so a supply with zero quantity always has zero cost. Credits spent on a supply therefore always equal the amount expensed on receipts plus the cost still aboard.
 
 A manually dispatched ship stays docked after arrival until ordered out again.
 

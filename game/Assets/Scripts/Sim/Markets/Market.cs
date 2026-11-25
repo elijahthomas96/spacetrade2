@@ -269,10 +269,37 @@ namespace SpaceTrade.Sim.Markets
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             reservation = null;
+            var problems = Check(request, out var lines, out var pool);
+            if (problems.Count > 0) return CommandResult.Fail(string.Join(" ", problems));
+
+            foreach (var line in lines)
+            {
+                FindSupply(request.OriginId, line.CommodityId).Tonnes -= line.Tonnes;
+                FindDemand(request.DestinationId, line.CommodityId).Tonnes -= line.Tonnes;
+            }
+            pool.Waiting -= request.Passengers;
+            reservation = new MarketReservation(this, request.OriginId, request.DestinationId, lines, request.Passengers, FarePerPassenger(pool));
+            return CommandResult.Ok();
+        }
+
+        /// <summary>
+        /// Every reason <see cref="TryReserve"/> would refuse this request right now, with numbers.
+        /// Empty when it would succeed. Changes nothing.
+        /// </summary>
+        public IReadOnlyList<string> CheckReservation(ReservationRequest request)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            return Check(request, out _, out _);
+        }
+
+        private List<string> Check(ReservationRequest request, out List<ReservedFreight> lines, out PassengerPool pool)
+        {
+            lines = new List<ReservedFreight>();
+            pool = null;
             int count = Galaxy.Systems.Count;
-            if (request.OriginId < 0 || request.OriginId >= count) return CommandResult.Fail($"There is no system with id {request.OriginId}.");
-            if (request.DestinationId < 0 || request.DestinationId >= count) return CommandResult.Fail($"There is no system with id {request.DestinationId}.");
-            if (request.OriginId == request.DestinationId) return CommandResult.Fail($"The origin and destination are both {SystemName(request.OriginId)}.");
+            if (request.OriginId < 0 || request.OriginId >= count) return new List<string> { $"There is no system with id {request.OriginId}." };
+            if (request.DestinationId < 0 || request.DestinationId >= count) return new List<string> { $"There is no system with id {request.DestinationId}." };
+            if (request.OriginId == request.DestinationId) return new List<string> { $"The origin and destination are both {SystemName(request.OriginId)}." };
 
             string from = SystemName(request.OriginId);
             string to = SystemName(request.DestinationId);
@@ -288,7 +315,6 @@ namespace SpaceTrade.Sim.Markets
                 wanted[c.Id] = sofar + line.Tonnes;
             }
 
-            var lines = new List<ReservedFreight>();
             foreach (var c in Tuning.Commodities)
             {
                 if (!wanted.TryGetValue(c.Id, out long tonnes)) continue;
@@ -305,20 +331,11 @@ namespace SpaceTrade.Sim.Markets
                     lines.Add(new ReservedFreight(c.Id, (int)tonnes, RatePerTonne(FindOffer(request.OriginId, c.Id, request.DestinationId))));
             }
 
-            var pool = FindPool(request.OriginId, request.DestinationId);
+            pool = FindPool(request.OriginId, request.DestinationId);
             if (request.Passengers < 0) problems.Add($"The passenger count cannot be negative, got {request.Passengers}.");
             else if (request.Passengers > pool.Waiting) problems.Add($"Only {pool.Waiting} passengers waiting from {from} to {to}; requested {request.Passengers}.");
 
-            if (problems.Count > 0) return CommandResult.Fail(string.Join(" ", problems));
-
-            foreach (var line in lines)
-            {
-                FindSupply(request.OriginId, line.CommodityId).Tonnes -= line.Tonnes;
-                FindDemand(request.DestinationId, line.CommodityId).Tonnes -= line.Tonnes;
-            }
-            pool.Waiting -= request.Passengers;
-            reservation = new MarketReservation(this, request.OriginId, request.DestinationId, lines, request.Passengers, FarePerPassenger(pool));
-            return CommandResult.Ok();
+            return problems;
         }
 
         /// <summary>

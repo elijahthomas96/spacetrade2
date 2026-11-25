@@ -17,7 +17,7 @@ Every economy number in the game lives in one file, `game/Assets/StreamingAssets
 - Misspelled or extra field names are errors too, so a typo never silently does nothing.
 - Ids (`"courier"`, `"ore"`, `"refinery"`) link sections together. If you rename an id, rename every place that uses it.
 
-Some fields are used by rules that arrive in later build sessions (ships in 5, shipyards in 8, automated routes in 9). Their meaning is fixed here; later sessions may add fields, and will update this guide when they do. Market rules (session 4) are described in "How markets use these numbers" below.
+Some fields are used by rules that arrive in later build sessions (in-system transport in 7, shipyards in 8, automated routes in 9). Their meaning is fixed here; later sessions may add fields, and will update this guide when they do. Market rules are described in "How markets use these numbers" and ship and voyage rules in "How voyages use these numbers" below.
 
 ## start
 
@@ -38,7 +38,7 @@ Some fields are used by rules that arrive in later build sessions (ships in 5, s
 |---|---|---|
 | `systemCountMin`, `systemCountMax` | systems | How many star systems a new galaxy has, picked at random in this range. At least 3. |
 | `nearestNeighbourMinMilliLy`, `nearestNeighbourMaxMilliLy` | milli-ly | Every system's closest neighbour is at least the minimum and at most the maximum distance away. Controls how spread out the map is and how long the shortest trips take. |
-| `maxHopMilliLy` | milli-ly | The longest single hop the galaxy rules count on. Every system must be connected to the start system by a chain of hops no longer than this, and the start system must be within this distance of a shipyard. Must be at least `nearestNeighbourMaxMilliLy`, so a galaxy can always be generated. A later session adds a check that the starter ship can actually fly this far on a full tank. |
+| `maxHopMilliLy` | milli-ly | The longest single hop the galaxy rules count on. Every system must be connected to the start system by a chain of hops no longer than this, and the start system must be within this distance of a shipyard. Must be at least `nearestNeighbourMaxMilliLy`, so a galaxy can always be generated. The starter ship must also be able to fly this far: see "Starter-range check" below. |
 | `industriesPerSystemMin`, `industriesPerSystemMax` | industries | How many industries each system has. The maximum must be at least 2 (a shipyard system needs the yard plus at least one trading industry) and no more than the number of industries that don't enable a shipyard. |
 | `shipyardCountMin`, `shipyardCountMax` | systems | How many systems get a shipyard. At least 2, and the maximum cannot be more than `systemCountMin`. |
 | `populationMinMillions`, `populationMaxMillions` | millions of people | Each system's population, picked at random in this range. Larger populations mean more passengers. |
@@ -109,12 +109,28 @@ Voyages last game years, so small changes to the per-person food and water amoun
 
 ## How markets use these numbers
 
-- **Prices are worked out, not stored.** For freight rates, passenger fares, and provision prices, a save keeps only the random roll (a percent). The number the player sees is worked out each time from that roll and the current tuning file. Edit a base price, the distance factor, or a modifier, and existing saves show the new prices straight away. Rates and fares already locked into a voyage in flight do not change.
+- **Prices are worked out, not stored.** For open freight offers, passenger pools, and provision prices, a save keeps only the random roll (a percent). The number the player sees is worked out each time from that roll and the current tuning file. Edit a base price, the distance factor, or a modifier, and existing saves show the new prices straight away.
+- **Voyages in flight keep their pay.** When a ship is dispatched, the freight rate and passenger fare it was quoted are written into the voyage as fixed credit amounts, not as a percent. Editing this file never changes what a voyage already in flight will be paid.
 - **Freight rate** = `baseRatePerTonne` x distance factor x roll, where the roll is a whole percent between `rateRollMinPercent` and `rateRollMaxPercent`. **Passenger fare** is the same with `baseFare` and the fare roll range.
 - **Provision price** = base price x combined industry modifier (clamped to the floor and ceiling) x the system's roll, a whole percent between `priceRollMinPercent` and `priceRollMaxPercent`. Provision rolls are made once, when a galaxy's markets are created, and never re-rolled, so a cheap-fuel port stays cheap.
-- **Rounding.** Every market figure (rates, fares, prices, pool sizes, starting amounts) is calculated exactly and rounded once, at the end, to the nearest whole number. Exact halves round up.
+- **Rounding.** One rule everywhere a figure is rounded to the nearest whole number: it is calculated exactly and rounded once, at the end, with exact halves rounding away from zero (2.5 becomes 3, -2.5 becomes -3). That covers rates, fares, prices, pool sizes, starting amounts, supply purchase costs, the share of supply cost a voyage uses, and profit per game year. Transit time, the real-time countdown, and supplies needed are rounded up instead, so none of them ever comes out short.
 - **Schedules** count from the moment the markets were created. Every `replenishIntervalDays` (per commodity) supply and demand grow by their replenish amounts; every `passengers.replenishIntervalDays` each pool gains `replenishPassengers`; every `rates.rerollIntervalDays` every freight rate and passenger fare is re-rolled. Nothing grows past its cap, and growing back never removes stock that is already above a cap you lowered.
 - **Offers.** There is one freight offer for every pair of a system that produces a commodity and a different system that consumes it, and one passenger pool for every ordered pair of systems. Supply at an origin is shared by all its offers for that commodity, and demand at a destination is shared by every origin delivering there.
+
+## How voyages use these numbers
+
+- **People aboard** = the class's `crew` + passengers.
+- **Food needed** (kg) = people x voyage days x `foodGramsPerPersonPerDay` / 1,000, rounded up to the whole kilogram. **Water** is the same with `waterGramsPerPersonPerDay`. Voyage days can be a fraction: a 4.5 ly trip at 1.5c lasts exactly 1,080 days.
+- **Loaded mass** (tonnes) = `dryMassTonnes` + freight + food + water + people x `personMassKg`. Fuel's own mass is left out.
+- **Fuel needed** (kg) = light-years x loaded mass in tonnes x the drive's `fuelKgPerTonneLy`, rounded up to the whole kilogram.
+- **Hold**: freight + food + water must fit in `holdTonnes`. Food and water count at what will be aboard after topping up, including leftovers from earlier voyages.
+- **Tank**: fuel needed must fit in `tankTonnes`. **Berths**: passengers must not exceed `berths`.
+- **Buying supplies**: kilograms x the local price per tonne / 1,000, rounded once.
+- **Cost of supplies used**: each supply aboard has one average price. A voyage is charged its share of the total cost; using everything left charges everything left, so an empty tank or larder always carries zero cost.
+
+## Starter-range check
+
+When the file loads, the game checks that the starter ship (`start.starterShipClass` with `start.starterDrive`) can fly `galaxy.maxHopMilliLy` with crew only, a full tank, and the food and water the crew needs. If the fuel needed is more than the tank, the error names `ships[<starter class>].tankTonnes`. If the food and water do not fit, it names `ships[<starter class>].holdTonnes`. Either way the file is set aside and the built-in defaults are used. With the defaults the courier needs 9.789 t of fuel (tank 20 t) and 3.36 t of food and water (hold 30 t) for a 7 ly hop.
 
 ## ships
 
