@@ -258,6 +258,32 @@
       "inSystemDailyIncome": 40
     }
   ],
+  "shipNames": [
+    "Brass Tack",
+    "Fair Wind",
+    "Far Errand",
+    "Good Hope",
+    "Halfway There",
+    "Kingfisher",
+    "Lantern",
+    "Ledger",
+    "Little Dipper",
+    "Long Haul",
+    "Meridian",
+    "Northern Star",
+    "Old Reliable",
+    "Ostinato",
+    "Patience",
+    "Persistence",
+    "Quiet Margin",
+    "Saltmarsh",
+    "Second Wind",
+    "Steady Hand",
+    "Swallow",
+    "Tern",
+    "Wayfarer",
+    "Windfall"
+  ],
   "drives": [
     {
       "id": "alcubierre_1_50",

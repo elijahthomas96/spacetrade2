@@ -39,7 +39,7 @@ Other technical defaults (agent may change with a note in `docs/progress.md`): U
 - 1 tick = 1 real millisecond at 1x speed.
 - 1 game day = 10,000 ticks (10 real seconds at 1x).
 - 1 game year = 360 game days = 3,600,000 ticks (exactly 1 real hour at 1x).
-- Calendar: 12 months of 30 days. Dates display as `Y3 M04 D12`. A new game starts at `Y1 M01 D01`.
+- Calendar: 12 months of 30 days. Dates display as `Y3 M04 D12`. A new game starts at `Y1 M01 D01` (tick 0), paused, with 1x selected.
 
 ### 3.2 Clock controls
 
@@ -166,11 +166,17 @@ Every ship uses an Alcubierre drive with a rated speed. Default tiers: **1.5c, 2
 
 ### 6.4 New-game start
 
-- The player starts with one courier, docked, with starting credits from the tuning file.
+- The player starts with one courier, docked at the start system with empty fuel, food, and water (the first step is Provision), and starting credits from the tuning file. The clock opens paused at 1x on `Y1 M01 D01`.
+- **Starter ship name.** The save's seed picks the name from the `shipNames` list in the tuning file. The name is stored on the ship when it is created, so later edits to the list never rename an existing ship. An empty or missing list, a blank name, or a repeated name is a tuning error naming the field, with fallback to the built-in defaults (section 12).
 - The start port must offer at least two jobs that are both feasible and affordable with starting credits, with different tradeoffs (for example a short low-pay freight run versus a longer passenger run).
+- **A job**, for this guarantee, is one freight offer or one passenger booking from the start port, loaded with as much as the starter ship can feasibly take (the most tonnes, or the most passengers, for which the quote shows no problem). **Feasible and affordable** means the real quote for it shows no problem, with the starting credits.
+- **Different tradeoffs** means two of those jobs go to different destinations, one is faster (strictly fewer transit ticks) and the other earns more (strictly more net profit on its quote), so neither is better on both time and money.
 - **At least one of them must show a positive net profit** when run through the real quote function. The generator checks this with the actual quote math and adjusts the opening offers (never the distances or travel rules) until it holds.
+- **How the opening offers are adjusted.** Only the stored roll percents of the start port's freight offers and passenger pools change. If the guarantee does not hold, every one of those rolls is raised by 1 percent, never above its tuning maximum, and the check runs again, until it holds.
+- **If it cannot hold.** If the guarantee still fails with every start-port roll at its maximum (or the galaxy cannot be generated), tuning the owner edited is set aside for that new game with a message naming the fields to look at, and the new game is built from the built-in defaults, as for a tuning error. A new game never fails on the built-in defaults: if they cannot meet the guarantee on a seed, the next seed is tried, and the seed actually used is the game's seed, stored in the game state.
+- **The opening rates are held until the first dispatch.** From new-game creation until the first dispatch, the start port's freight rates and passenger fares are not re-rolled, so the guarantee still holds if the player waits past one or more re-roll intervals before launching. Every other system re-rolls as normal. After the first dispatch the start port rejoins the normal re-roll schedule at its next re-roll.
 - The player can inspect destinations and their likely return loads before committing.
-- After this first set of offers, nothing is guaranteed. Some jobs will lose money, and the quote says so.
+- After the first voyage leaves, nothing is guaranteed. Some jobs will lose money, and the quote says so.
 
 ### 6.5 Planning and the quote
 
@@ -193,6 +199,7 @@ The locked terms hold each freight rate (credits per tonne) and the passenger fa
 
 - **Top-up approval.** Dispatch carries a yes/no "buy the top-up" choice. Yes buys exactly the quoted shortfall inside the same transaction, so the result is exactly the same as pressing Provision and then dispatching. No, with any supply short, refuses the dispatch with the shortfall and its cost and changes nothing. An automated route stop's automatic provisioning setting (section 8) is this same yes/no.
 - **Ships in transit.** A ship in transit cannot be quoted, provisioned, or dispatched. Each is refused with the destination and arrival date and changes nothing.
+- **Ships on in-system transport.** A ship with the in-system toggle on can still be quoted and provisioned, but dispatch is refused, changing nothing, with a reason telling the player to turn off in-system transport first (section 10).
 - **Empty voyages.** A voyage with no freight and no passengers may be dispatched by hand (for example, to reposition a ship). It reserves nothing, is paid nothing, uses its supplies like any voyage, and its quote shows the loss.
 
 ### 6.7 Arrival and the receipt
@@ -278,8 +285,10 @@ Date, pause/play, speed buttons (1x, 3x, 5x), credits, notification list. Notifi
 This is how a broke player recovers. It replaces the brief's emergency contract.
 
 - A toggle on any docked ship. While on, the ship does local hauling inside its current system and earns a small, steady income, credited once per game day.
-- The ship cannot be dispatched while the toggle is on. Turning it off is instant and has no cost.
-- The daily rate is per ship class, in the tuning file. It is set low: default target is that a full game year of in-system transport earns about 10 to 15 percent of what the same ship earns from typical voyages in that time.
+- **When it pays.** The daily rate is paid after each full game day (10,000 ticks) since the toggle went on. A partial day pays nothing, and switching off then on restarts the count. A day that completes at the same tick the toggle goes off is paid.
+- A ship in transit cannot be switched on; the request is refused with its destination and arrival date and changes nothing. Asking for the state a ship is already in (on when on, off when off) succeeds and changes nothing; in particular, it does not restart the count.
+- The ship cannot be dispatched while the toggle is on (section 6.6); it can still be quoted and provisioned. Turning it off is instant and has no cost.
+- The daily rate is per ship class, in the tuning file, and must be at least 1 credit for every class (a lower value is a tuning error naming the field), so recovery is always possible. It is set low: default target is that a full game year of in-system transport earns about 10 to 15 percent of what the same ship earns from typical voyages in that time.
 - It uses no provisions and needs no cargo.
 - It runs through the normal event queue, so it earns nothing while paused and earns correctly during offline catch-up.
 - A ship on an automated route can only be toggled after the route is paused or cleared.
@@ -289,7 +298,7 @@ This is how a broke player recovers. It replaces the brief's emergency contract.
 
 ### 11.1 Contents
 
-Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\LocalLow\spacetrade2\spacetrade2\saves\`). A save holds: save format version, galaxy seed and the generated galaxy, random generator state, clock tick, selected speed, pause state, market supply, demand, bookings, rates and reservations, credits, ships with provisions and cost, in-flight voyages with locked terms, every delivery receipt, route orders and waiting or blocked state, in-system toggles, notifications, and the real-world UTC timestamp of the save.
+Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\LocalLow\spacetrade2\spacetrade2\saves\`). A save holds: save format version, galaxy seed and the generated galaxy, random generator state, clock tick, selected speed, pause state, market supply, demand, bookings, rates and reservations, credits, ships with provisions and cost, in-flight voyages with locked terms, every delivery receipt, route orders and waiting or blocked state, in-system toggles with the tick each went on, whether the start port's opening rates are still held (section 6.4), notifications, and the real-world UTC timestamp of the save.
 
 ### 11.2 Writing
 
@@ -321,7 +330,8 @@ One JSON file (a plain text data format), at `game/Assets/StreamingAssets/tuning
 - **passengers:** base fare, fare roll range, pool sizes, replenish rates.
 - **rates:** distance factor, re-roll interval.
 - **provisions:** base prices for fuel, food, water, and per-industry price modifiers; floor and ceiling for the combined modifier (default 50 and 200 percent); food and water per person per day; people mass.
-- **ships:** per class dry mass, hold, tank, berths, crew, price, in-system daily income.
+- **ships:** per class dry mass, hold, tank, berths, crew, price, in-system daily income (at least 1).
+- **shipNames:** the list new ships are named from (section 6.4). At least one name, no blank names, no repeats.
 - **drives:** per tier speed, price, fuel kg per tonne-ly.
 - **shipyards:** stock sizes, restock interval, local price variation.
 - **automation:** recheck behaviour limits.

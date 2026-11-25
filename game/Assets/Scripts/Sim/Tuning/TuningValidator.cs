@@ -96,6 +96,9 @@ namespace SpaceTrade.Sim.Tuning
             // ships, drives
             if (t.Ships.Count == 0) errors.Add("ships: must list at least one ship class");
             UniqueIds("ships", t.Ships.Select(s => s.Id));
+            if (t.ShipNames.Count == 0) errors.Add("shipNames: must list at least one name for new ships");
+            foreach (var dup in t.ShipNames.GroupBy(n => n).Where(x => x.Count() > 1))
+                errors.Add($"shipNames: \"{dup.Key}\" appears more than once");
             if (t.Drives.Count == 0) errors.Add("drives: must list at least one drive");
             UniqueIds("drives", t.Drives.Select(d => d.Id));
 

@@ -48,6 +48,13 @@ namespace SpaceTrade.Sim.Markets
 
         public IReadOnlyList<ProvisionRoll> ProvisionRolls => _provisionRolls;
 
+        /// <summary>
+        /// True from new-game creation until the first dispatch: the start system's freight rates and
+        /// passenger fares are not re-rolled, so the opening-offer guarantee (spec 6.4) holds until
+        /// the first voyage leaves. Every other system re-rolls as normal.
+        /// </summary>
+        public bool HoldsOpeningRates { get; private set; }
+
         private Market(Galaxy galaxy, TuningData tuning, long createdTick, SeededRandom random)
         {
             Galaxy = galaxy;
@@ -244,7 +251,7 @@ namespace SpaceTrade.Sim.Markets
                 foreach (var pool in PoolsFrom(systemId))
                     pool.Waiting = Refill(pool.Waiting, PoolCap(pool), p.ReplenishPassengers);
 
-            if (IsBoundary(Tuning.Rates.RerollIntervalDays, tick))
+            if (IsBoundary(Tuning.Rates.RerollIntervalDays, tick) && !(HoldsOpeningRates && systemId == Galaxy.StartSystemId))
             {
                 foreach (var offer in OffersFrom(systemId))
                 {
@@ -254,6 +261,32 @@ namespace SpaceTrade.Sim.Markets
                 foreach (var pool in PoolsFrom(systemId))
                     pool.FareRollPercent = Random.Range(p.FareRollMinPercent, p.FareRollMaxPercent);
             }
+        }
+
+        // ---- Opening offers ----
+
+        internal void HoldOpeningRates() => HoldsOpeningRates = true;
+
+        internal void ReleaseOpeningRates() => HoldsOpeningRates = false;
+
+        /// <summary>
+        /// Raises the roll of every freight offer and passenger pool from the start system by one
+        /// percent, never above its tuning maximum. Returns false when every roll was already at its maximum.
+        /// </summary>
+        internal bool RaiseOpeningRolls()
+        {
+            int start = Galaxy.StartSystemId;
+            bool raised = false;
+            foreach (var offer in OffersFrom(start))
+            {
+                int max = Commodity(offer.CommodityId).RateRollMaxPercent;
+                if (offer.RateRollPercent < max) { offer.RateRollPercent++; raised = true; }
+            }
+            foreach (var pool in PoolsFrom(start))
+            {
+                if (pool.FareRollPercent < Tuning.Passengers.FareRollMaxPercent) { pool.FareRollPercent++; raised = true; }
+            }
+            return raised;
         }
 
         // ---- Reservations ----
@@ -361,7 +394,8 @@ namespace SpaceTrade.Sim.Markets
         public string DescribeState()
         {
             var sb = new StringBuilder();
-            sb.Append("created=").Append(CreatedTick)
+            sb.Append("seed=").Append(Galaxy.Seed).Append(" start=").Append(Galaxy.StartSystemId)
+              .Append(" created=").Append(CreatedTick).Append(" openingHeld=").Append(HoldsOpeningRates)
               .Append(" rng=").Append(Random.S0).Append(',').Append(Random.S1).Append(',').Append(Random.S2).Append(',').Append(Random.S3).Append('\n');
             foreach (var s in _supplies) sb.Append("supply ").Append(s.SystemId).Append(' ').Append(s.CommodityId).Append(' ').Append(s.Tonnes).Append('\n');
             foreach (var d in _demands) sb.Append("demand ").Append(d.SystemId).Append(' ').Append(d.CommodityId).Append(' ').Append(d.Tonnes).Append('\n');

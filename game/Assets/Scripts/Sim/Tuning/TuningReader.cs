@@ -27,6 +27,7 @@ namespace SpaceTrade.Sim.Tuning
                 Rates = ReadRates(r.Child("rates")),
                 Provisions = ReadProvisions(r.Child("provisions")),
                 Ships = ReadList(r, "ships", ReadShip),
+                ShipNames = r.TextList("shipNames"),
                 Drives = ReadList(r, "drives", ReadDrive),
                 Shipyards = ReadShipyards(r.Child("shipyards")),
                 Automation = ReadAutomation(r.Child("automation")),
@@ -179,7 +180,7 @@ namespace SpaceTrade.Sim.Tuning
             Berths = r.Int("berths", 0, 100_000),
             Crew = r.Int("crew", 1, 100_000),
             Price = r.Long("price", 0, MaxCredits),
-            InSystemDailyIncome = r.Long("inSystemDailyIncome", 0, MaxCredits),
+            InSystemDailyIncome = r.Long("inSystemDailyIncome", 1, MaxCredits),
         };
 
         private static DriveTuning ReadDrive(ObjectReader r) => new DriveTuning

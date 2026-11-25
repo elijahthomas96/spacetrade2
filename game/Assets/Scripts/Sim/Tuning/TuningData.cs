@@ -16,6 +16,8 @@ namespace SpaceTrade.Sim.Tuning
         public RateTuning Rates = new RateTuning();
         public ProvisionTuning Provisions = new ProvisionTuning();
         public List<ShipClassTuning> Ships = new List<ShipClassTuning>();
+        /// <summary>Names given to new ships. A ship keeps the name it was given, whatever later happens to this list.</summary>
+        public List<string> ShipNames = new List<string>();
         public List<DriveTuning> Drives = new List<DriveTuning>();
         public ShipyardTuning Shipyards = new ShipyardTuning();
         public AutomationTuning Automation = new AutomationTuning();

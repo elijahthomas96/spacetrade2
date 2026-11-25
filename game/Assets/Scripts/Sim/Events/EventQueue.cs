@@ -23,6 +23,13 @@ namespace SpaceTrade.Sim.Events
             _pending.Add(new ScheduledEvent(tick, _nextSequence++, ev));
         }
 
+        /// <summary>Removes every pending event that matches. Returns how many were removed.</summary>
+        internal int RemoveWhere(Func<SimEvent, bool> match)
+        {
+            if (match == null) throw new ArgumentNullException(nameof(match));
+            return _pending.RemoveWhere(e => match(e.Event));
+        }
+
         internal bool TryDequeueDueBy(long tick, out ScheduledEvent next)
         {
             if (_pending.Count == 0 || _pending.Min.Tick > tick)

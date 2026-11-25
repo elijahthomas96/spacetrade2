@@ -101,6 +101,13 @@ namespace SpaceTrade.Sim.Tuning
                     new ShipClassTuning { Id = "bulk_freighter", Name = "Bulk freighter", DryMassTonnes = 200, HoldTonnes = 300, TankTonnes = 120, Berths = 2, Crew = 4, Price = 3_500_000, InSystemDailyIncome = 50 },
                     new ShipClassTuning { Id = "passenger_liner", Name = "Passenger liner", DryMassTonnes = 120, HoldTonnes = 40, TankTonnes = 50, Berths = 24, Crew = 5, Price = 2_500_000, InSystemDailyIncome = 40 },
                 },
+                ShipNames = new List<string>
+                {
+                    "Brass Tack", "Fair Wind", "Far Errand", "Good Hope", "Halfway There", "Kingfisher",
+                    "Lantern", "Ledger", "Little Dipper", "Long Haul", "Meridian", "Northern Star",
+                    "Old Reliable", "Ostinato", "Patience", "Persistence", "Quiet Margin", "Saltmarsh",
+                    "Second Wind", "Steady Hand", "Swallow", "Tern", "Wayfarer", "Windfall",
+                },
                 Drives = new List<DriveTuning>
                 {
                     new DriveTuning { Id = "alcubierre_1_50", Name = "Alcubierre 1.5c", SpeedMilliC = 1_500, Price = 150_000, FuelKgPerTonneLy = 22 },

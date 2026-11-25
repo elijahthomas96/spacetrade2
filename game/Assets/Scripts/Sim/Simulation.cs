@@ -118,9 +118,11 @@ namespace SpaceTrade.Sim
         public CommandResult Dispatch(VoyagePlan plan, bool buyTopUp)
         {
             if (plan == null) throw new ArgumentNullException(nameof(plan));
+            var ship = FindShip(plan.ShipId);
+            if (ship != null && ship.IsOnInSystemTransport)
+                return CommandResult.Fail($"{ship.Name} is on in-system transport at {Market.Galaxy.Systems[ship.DockedSystemId.Value].Name}. Turn off in-system transport to dispatch it.");
             var quote = Quote(plan);
             if (!quote.IsFeasible) return CommandResult.Fail(string.Join(" ", quote.Problems));
-            var ship = FindShip(plan.ShipId);
 
             if (!buyTopUp)
             {
@@ -150,7 +152,48 @@ namespace SpaceTrade.Sim
             ship.DockedSystemId = null;
             ship.Voyage = voyage;
             Schedule(voyage.ArrivalTick, new ArrivalEvent(ship.Id));
+            Market.ReleaseOpeningRates();
             return CommandResult.Ok();
+        }
+
+        /// <summary>
+        /// Switches in-system transport on or off for a ship (spec 10). On is refused for a ship in transit.
+        /// While on, the ship earns its class's daily income after each full game day since it was switched
+        /// on; switching off is instant, pays nothing for a partial day, and switching on again starts a
+        /// new count. Asking for the state the ship is already in succeeds and changes nothing.
+        /// </summary>
+        public CommandResult SetInSystemTransport(int shipId, bool on)
+        {
+            var ship = FindShip(shipId);
+            if (ship == null) return CommandResult.Fail($"There is no ship with id {shipId}.");
+            if (on == ship.IsOnInSystemTransport) return CommandResult.Ok();
+
+            if (on)
+            {
+                if (ship.IsInTransit)
+                    return CommandResult.Fail($"{ship.Name} is in transit to {Market.Galaxy.Systems[ship.Voyage.DestinationId].Name}, arriving {GameDate.FromTick(ship.Voyage.ArrivalTick)}. In-system transport can only be switched on for a docked ship.");
+                long firstPay = checked(CurrentTick + GameTime.TicksPerDay);
+                ship.InSystemSinceTick = CurrentTick;
+                Schedule(firstPay, new InSystemIncomeEvent(ship.Id));
+            }
+            else
+            {
+                ship.InSystemSinceTick = null;
+                Events.RemoveWhere(e => e is InSystemIncomeEvent pay && pay.ShipId == ship.Id);
+            }
+            return CommandResult.Ok();
+        }
+
+        /// <summary>One full game day of in-system transport, run by the ship's income event: pay the class's daily income and schedule the next day.</summary>
+        internal void PayInSystemDay(int shipId)
+        {
+            var ship = FindShip(shipId);
+            long since = ship?.InSystemSinceTick ?? throw new InvalidOperationException($"Ship {shipId} is not on in-system transport.");
+            if (CurrentTick <= since || (CurrentTick - since) % GameTime.TicksPerDay != 0)
+                throw new InvalidOperationException($"Ship {shipId}'s in-system pay is due on whole days from tick {since}, not at tick {CurrentTick}.");
+            var shipClass = Market.Tuning.FindShip(ship.ClassId) ?? throw new InvalidOperationException($"Ship {shipId}'s class \"{ship.ClassId}\" is not in the tuning.");
+            Credits = checked(Credits + shipClass.InSystemDailyIncome);
+            Schedule(checked(CurrentTick + GameTime.TicksPerDay), new InSystemIncomeEvent(shipId));
         }
 
         /// <summary>

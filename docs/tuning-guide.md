@@ -17,7 +17,7 @@ Every economy number in the game lives in one file, `game/Assets/StreamingAssets
 - Misspelled or extra field names are errors too, so a typo never silently does nothing.
 - Ids (`"courier"`, `"ore"`, `"refinery"`) link sections together. If you rename an id, rename every place that uses it.
 
-Some fields are used by rules that arrive in later build sessions (in-system transport in 7, shipyards in 8, automated routes in 9). Their meaning is fixed here; later sessions may add fields, and will update this guide when they do. Market rules are described in "How markets use these numbers" and ship and voyage rules in "How voyages use these numbers" below.
+Some fields are used by rules that arrive in later build sessions (shipyards in 8, automated routes in 9). Their meaning is fixed here; later sessions may add fields, and will update this guide when they do. Market rules are described in "How markets use these numbers" and ship and voyage rules in "How voyages use these numbers" below.
 
 ## start
 
@@ -26,11 +26,19 @@ Some fields are used by rules that arrive in later build sessions (in-system tra
 | `startingCredits` | credits | Money the player has at the start of a new game. |
 | `starterShipClass` | id from `ships` | The class of the one ship the player starts with. |
 | `starterDrive` | id from `drives` | The drive fitted to that starting ship. |
-| `openingOffers.minFeasibleJobs` | jobs | The start port must offer at least this many jobs that the starting ship can fly and the player can afford. |
+| `openingOffers.minFeasibleJobs` | jobs | The start port must offer at least this many jobs that the starting ship can fly and the player can afford. When this is 2 or more, two of them must also go to different destinations with one faster (fewer transit ticks) and the other earning more (more net profit on its quote). See "New games" below. |
 | `openingOffers.minProfitableJobs` | jobs | Of those, at least this many must show a profit in the real quote. Cannot be more than `minFeasibleJobs`. |
 | `marketStartFill.supplyPercent` | percent, 0 to 100 | How full each system's freight supply is when a new galaxy's markets are created, as a percent of `supplyCapTonnes`. 100 = full. |
 | `marketStartFill.demandPercent` | percent, 0 to 100 | The same for each destination's demand, as a percent of `demandCapTonnes`. |
 | `marketStartFill.passengerPercent` | percent, 0 to 100 | The same for each passenger pool, as a percent of that route's pool size. |
+
+### New games
+
+- A new game opens paused at 1x on Y1 M01 D01, with the starter ship docked at the start system with empty supplies and `startingCredits`. Its name is picked from `shipNames` by the save's seed.
+- **A job** is one freight offer or one passenger booking from the start port, loaded with as much as the starter ship can take. It counts as feasible and affordable when its real quote shows no problem with the starting credits.
+- **How the game makes the guarantee hold.** If the start port's jobs do not meet `minFeasibleJobs`, `minProfitableJobs`, and the faster-versus-earns-more rule, the game raises the rate roll of every freight offer and passenger fare at the start port by 1 percent, never above `rateRollMaxPercent` or `fareRollMaxPercent`, and checks again. Distances, stock, and every other system are never touched. With the defaults this happened on 1 seed in 200.
+- **The start port's rates stay put until the first launch.** Its rates and fares are not re-rolled until the first ship is dispatched, so waiting before the first voyage never loses the guarantee. Everywhere else re-rolls every `rates.rerollIntervalDays` as usual.
+- **If your edited file cannot meet it.** If the guarantee still fails with every start-port roll at its maximum, that new game is built from the built-in defaults instead, and the game shows a message naming the fields to look at, for example `start.openingOffers.minFeasibleJobs: the start port offers 0 job(s) the starter ship can fly and afford, needs 2. Look at start.startingCredits, start.marketStartFill, ...`. The built-in defaults never fail: on a seed they cannot meet, the next seed is used, and that seed becomes the game's seed.
 
 ## galaxy
 
@@ -145,7 +153,13 @@ A list. Each ship class has:
 | `berths` | passengers | Most passengers the ship can carry. |
 | `crew` | people | Crew aboard. They eat and drink like passengers. |
 | `price` | credits | Base price at a shipyard. |
-| `inSystemDailyIncome` | credits per game day | What the ship earns doing in-system transport. Aim for about 10 to 15 percent of what the ship earns from voyages in the same time. |
+| `inSystemDailyIncome` | credits per game day | What the ship earns doing in-system transport. At least 1, so a broke player can always recover. Aim for about 10 to 15 percent of what the ship earns from voyages in the same time. |
+
+**In-system transport** pays `inSystemDailyIncome` after each full game day (10,000 ticks, 10 real seconds at 1x) since the toggle went on. A partial day pays nothing, and switching off then on starts the count again. It earns nothing while the game is paused.
+
+## shipNames
+
+A list of text: the names new ships are given. The starter ship's name is picked from it by the save's seed (session 8 will name bought ships from it too). A ship keeps its name for good, so editing this list never renames a ship that already exists. The list must have at least one name, with no blank names and no repeats; otherwise the error names `shipNames` (for example `shipNames: "Tern" appears more than once`) and the defaults are used.
 
 ## drives
 

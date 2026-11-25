@@ -21,6 +21,11 @@ namespace SpaceTrade.Sim.Ships
 
         public bool IsInTransit => Voyage != null;
 
+        /// <summary>The tick in-system transport was switched on, or null while it is off (spec 10). Pay falls due every full game day from here.</summary>
+        public long? InSystemSinceTick { get; internal set; }
+
+        public bool IsOnInSystemTransport => InSystemSinceTick.HasValue;
+
         public SupplyStock Fuel { get; } = new SupplyStock(SupplyKind.Fuel);
         public SupplyStock Food { get; } = new SupplyStock(SupplyKind.Food);
         public SupplyStock Water { get; } = new SupplyStock(SupplyKind.Water);
@@ -49,6 +54,7 @@ namespace SpaceTrade.Sim.Ships
         public string DescribeState() =>
             $"ship {Id} \"{Name}\" class={ClassId} drive={DriveId} docked={(DockedSystemId.HasValue ? DockedSystemId.Value.ToString() : "-")} " +
             $"fuel={Fuel.Kg}kg/{Fuel.CostCredits}cr food={Food.Kg}kg/{Food.CostCredits}cr water={Water.Kg}kg/{Water.CostCredits}cr" +
+            $" insystem={(InSystemSinceTick.HasValue ? InSystemSinceTick.Value.ToString() : "-")}" +
             (Voyage == null ? "" : " " + Voyage.DescribeState());
     }
 }

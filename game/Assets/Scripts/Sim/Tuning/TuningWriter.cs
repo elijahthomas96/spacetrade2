@@ -91,6 +91,7 @@ namespace SpaceTrade.Sim.Tuning
                     .Add("crew", s.Crew)
                     .Add("price", s.Price)
                     .Add("inSystemDailyIncome", s.InSystemDailyIncome)))
+                .Add("shipNames", t.ShipNames, onePerLine: true)
                 .Add("drives", Each(t.Drives, d => new JsonObjectBuilder()
                     .Add("id", d.Id)
                     .Add("name", d.Name)
