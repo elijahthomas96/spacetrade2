@@ -10,7 +10,8 @@ namespace SpaceTrade.Sim.Voyages
 {
     /// <summary>
     /// The single quote function (spec 2.7, 6.5). The preview and dispatch both go through
-    /// <see cref="Simulation.Quote"/>, which calls this. It never changes state.
+    /// <see cref="Simulation.Quote"/>, which calls this. It never changes state. A ship in transit
+    /// cannot be quoted, so it cannot be provisioned or dispatched either.
     /// </summary>
     internal static class VoyageQuoter
     {
@@ -31,7 +32,12 @@ namespace SpaceTrade.Sim.Voyages
             if (drive == null) { q.AddProblem($"{ship.Name}'s drive \"{ship.DriveId}\" is not in the tuning file."); return q; }
 
             var systems = market.Galaxy.Systems;
-            int origin = ship.DockedSystemId;
+            if (ship.Voyage != null)
+            {
+                q.AddProblem($"{ship.Name} is in transit to {systems[ship.Voyage.DestinationId].Name}, arriving {GameDate.FromTick(ship.Voyage.ArrivalTick)}. It can take a new voyage once it docks.");
+                return q;
+            }
+            int origin = ship.DockedSystemId.Value;
             if (plan.DestinationId < 0 || plan.DestinationId >= systems.Count) { q.AddProblem($"There is no system with id {plan.DestinationId}."); return q; }
             if (plan.DestinationId == origin) { q.AddProblem($"{ship.Name} is already at {systems[origin].Name}. Choose another destination."); return q; }
             if (plan.Passengers < 0) { q.AddProblem($"The passenger count cannot be negative, got {plan.Passengers}."); return q; }

@@ -58,13 +58,40 @@ namespace SpaceTrade.Sim.Tests
             return new VoyagePlan(CourierId, Beta, freight, passengers);
         }
 
-        /// <summary>Every stored value: market, credits, and ships.</summary>
-        public static string State(Simulation sim)
+        /// <summary>Every stored value: clock, credits, ships, voyages, receipts, pending events, and market.</summary>
+        public static string State(Simulation sim) => sim.DescribeState();
+
+        /// <summary>The whole state as bytes, for "byte-identical" checks.</summary>
+        public static byte[] StateBytes(Simulation sim) => Encoding.UTF8.GetBytes(sim.DescribeState());
+
+        public const int Gamma = 2;
+
+        /// <summary>
+        /// Alpha (mining colony), Beta (refinery) 4.5 ly east, Gamma (agricultural system) 3 ly further
+        /// east (7.5 ly from Alpha). Same courier and flat rolls as <see cref="NewSim"/>.
+        /// </summary>
+        public static Simulation NewThreeSystemSim(long credits, TuningData tuning = null)
         {
-            var sb = new StringBuilder(sim.Market.DescribeState());
-            sb.Append("credits=").Append(sim.Credits).Append('\n');
-            foreach (var s in sim.Ships) sb.Append(s.DescribeState()).Append('\n');
-            return sb.ToString();
+            tuning = tuning ?? FlatTuning();
+            var galaxy = new Galaxy(1, Alpha, new List<StarSystem>
+            {
+                new StarSystem(Alpha, "Alpha", 0, 0, 10, new[] { "mining_colony" }, false),
+                new StarSystem(Beta, "Beta", 4_500, 0, 10, new[] { "refinery" }, false),
+                new StarSystem(Gamma, "Gamma", 7_500, 0, 10, new[] { "agricultural_system" }, false),
+            });
+            var sim = new Simulation();
+            sim.AttachMarket(Market.Create(galaxy, tuning, 0));
+            sim.SetCredits(credits);
+            sim.AddShip("Test Courier", tuning.Start.StarterShipClass, tuning.Start.StarterDrive, Alpha);
+            return sim;
+        }
+
+        /// <summary>Credits plus the cost of every supply aboard every ship.</summary>
+        public static long CreditsPlusSuppliesAtCost(Simulation sim)
+        {
+            long total = sim.Credits;
+            foreach (var s in sim.Ships) total += s.Fuel.CostCredits + s.Food.CostCredits + s.Water.CostCredits;
+            return total;
         }
 
         public static string HoldProblem(VoyageQuote q) => FindProblem(q, "The hold holds");

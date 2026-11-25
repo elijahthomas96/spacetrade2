@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using SpaceTrade.Sim.Ships;
+using SpaceTrade.Sim.Voyages;
 
 namespace SpaceTrade.Sim.Tests
 {
@@ -35,9 +36,9 @@ namespace SpaceTrade.Sim.Tests
         }
 
         [Test]
-        public void ShipAndStockConstructors_AreInternal()
+        public void ShipStockVoyageAndReceiptConstructors_AreInternal()
         {
-            foreach (var type in new[] { typeof(Ship), typeof(SupplyStock) })
+            foreach (var type in new[] { typeof(Ship), typeof(SupplyStock), typeof(Voyage), typeof(LockedFreight), typeof(VoyageReceipt), typeof(ConsumedSupply) })
             foreach (var c in type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
                 Assert.IsTrue(c.IsAssembly, $"{type.Name} constructor must be internal");
         }
@@ -45,7 +46,7 @@ namespace SpaceTrade.Sim.Tests
         [Test]
         public void StateProperties_HaveNoPublicSetters()
         {
-            foreach (var type in new[] { typeof(Simulation), typeof(Ship), typeof(SupplyStock) })
+            foreach (var type in new[] { typeof(Simulation), typeof(Ship), typeof(SupplyStock), typeof(Voyage), typeof(LockedFreight), typeof(VoyageReceipt), typeof(ConsumedSupply) })
             foreach (var p in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
                 Assert.IsNull(p.GetSetMethod(false), $"{type.Name}.{p.Name} has a public setter");
         }
@@ -62,7 +63,7 @@ namespace SpaceTrade.Sim.Tests
                 .Select(m => m.Name)
                 .OrderBy(n => n)
                 .ToArray();
-            var expected = new[] { "Advance", "AttachMarket", "FindShip", "Pause", "Play", "Provision", "Quote", "Schedule", "SetSpeed" };
+            var expected = new[] { "Advance", "AttachMarket", "DescribeState", "Dispatch", "FindShip", "Pause", "Play", "Provision", "Quote", "RemainingSupplyKg", "Schedule", "SetSpeed" };
             CollectionAssert.AreEqual(expected, publicMethods);
         }
     }

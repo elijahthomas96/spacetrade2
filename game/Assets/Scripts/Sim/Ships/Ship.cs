@@ -1,4 +1,5 @@
 using System;
+using SpaceTrade.Sim.Voyages;
 
 namespace SpaceTrade.Sim.Ships
 {
@@ -12,7 +13,13 @@ namespace SpaceTrade.Sim.Ships
         public string Name { get; }
         public string ClassId { get; }
         public string DriveId { get; internal set; }
-        public int DockedSystemId { get; internal set; }
+        /// <summary>The system the ship is docked at, or null while it is in transit.</summary>
+        public int? DockedSystemId { get; internal set; }
+
+        /// <summary>The voyage in progress, or null while docked.</summary>
+        public Voyage Voyage { get; internal set; }
+
+        public bool IsInTransit => Voyage != null;
 
         public SupplyStock Fuel { get; } = new SupplyStock(SupplyKind.Fuel);
         public SupplyStock Food { get; } = new SupplyStock(SupplyKind.Food);
@@ -40,7 +47,8 @@ namespace SpaceTrade.Sim.Ships
 
         /// <summary>Every stored value in a fixed text layout, for comparing states exactly.</summary>
         public string DescribeState() =>
-            $"ship {Id} \"{Name}\" class={ClassId} drive={DriveId} docked={DockedSystemId} " +
-            $"fuel={Fuel.Kg}kg/{Fuel.CostCredits}cr food={Food.Kg}kg/{Food.CostCredits}cr water={Water.Kg}kg/{Water.CostCredits}cr";
+            $"ship {Id} \"{Name}\" class={ClassId} drive={DriveId} docked={(DockedSystemId.HasValue ? DockedSystemId.Value.ToString() : "-")} " +
+            $"fuel={Fuel.Kg}kg/{Fuel.CostCredits}cr food={Food.Kg}kg/{Food.CostCredits}cr water={Water.Kg}kg/{Water.CostCredits}cr" +
+            (Voyage == null ? "" : " " + Voyage.DescribeState());
     }
 }

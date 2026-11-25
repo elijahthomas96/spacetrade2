@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace SpaceTrade.Sim.Events
 {
@@ -32,6 +33,17 @@ namespace SpaceTrade.Sim.Events
             next = _pending.Min;
             _pending.Remove(next);
             return true;
+        }
+
+        /// <summary>Every pending event and the scheduling counter, in processing order, for comparing states exactly.</summary>
+        internal string DescribeState()
+        {
+            var sb = new StringBuilder();
+            sb.Append("events next=").Append(_nextSequence).Append(" pending=").Append(_pending.Count).Append('\n');
+            foreach (var e in _pending)
+                sb.Append("event ").Append(e.Tick).Append(' ').Append(e.Event.Phase).Append(' ').Append(e.Event.EntityId)
+                  .Append(' ').Append(e.Sequence).Append(' ').Append(e.Event.GetType().Name).Append('\n');
+            return sb.ToString();
         }
 
         internal readonly struct ScheduledEvent

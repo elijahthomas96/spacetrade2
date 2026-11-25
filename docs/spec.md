@@ -191,6 +191,10 @@ Dispatch is one transaction: validate, reserve freight and demand, book seats, b
 
 The locked terms hold each freight rate (credits per tonne) and the passenger fare (credits per passenger) as fixed credit amounts taken at dispatch, never as a rolled percent. Editing the tuning file never changes the payout of a voyage already in flight.
 
+- **Top-up approval.** Dispatch carries a yes/no "buy the top-up" choice. Yes buys exactly the quoted shortfall inside the same transaction, so the result is exactly the same as pressing Provision and then dispatching. No, with any supply short, refuses the dispatch with the shortfall and its cost and changes nothing. An automated route stop's automatic provisioning setting (section 8) is this same yes/no.
+- **Ships in transit.** A ship in transit cannot be quoted, provisioned, or dispatched. Each is refused with the destination and arrival date and changes nothing.
+- **Empty voyages.** A voyage with no freight and no passengers may be dispatched by hand (for example, to reposition a ship). It reserves nothing, is paid nothing, uses its supplies like any voyage, and its quote shows the loss.
+
 ### 6.7 Arrival and the receipt
 
 At the arrival tick the ship docks, unloads the contracted freight and passengers, and is paid exactly once at the locked rates. The receipt shows fares, freight revenue, supplies consumed at acquisition cost, elapsed game time, and net profit.
@@ -198,6 +202,12 @@ At the arrival tick the ship docks, unloads the contracted freight and passenger
 Each expense is counted once. Buying supplies moves credits into on-board inventory at cost; the expense appears on the receipt of the voyage that consumes them, even if they were bought at an earlier stop. Leftover supplies stay aboard with their cost.
 
 Each supply aboard has a quantity and a total cost, so it has one average price. A voyage is charged its share: total cost x kilograms used / kilograms aboard, rounded once. When a voyage uses everything that is left, it is charged everything that is left, so a supply with zero quantity always has zero cost. Credits spent on a supply therefore always equal the amount expensed on receipts plus the cost still aboard.
+
+**When supplies are used.** A voyage's supplies are used up and expensed once, at arrival: the kilograms of fuel, food, and water fixed at dispatch are taken out of the ship's stock at that moment, at their acquisition cost, and that is the only place supplies are used up. (Buying, through Provision or the dispatch top-up, still adds kilograms and cost.) Nothing aboard changes during the flight.
+
+**Remaining supplies in flight.** The supplies a ship in flight shows as remaining are a read-only figure, worked out from the locked voyage terms and the current tick, in whole kilograms. It is never stored, never saved, and changes nothing. For each supply: used so far = the voyage's locked use x ticks elapsed / transit ticks, rounded once by the one rounding rule (section 5.5); remaining = what is aboard - used so far. At the dispatch tick it equals what is aboard; at the arrival tick it equals exactly what settlement leaves aboard. Because the figure uses only locked terms, tuning edits during the flight do not change it.
+
+**Receipts are kept.** The simulation keeps every delivery receipt, in the order the ships arrived, and the save holds them all (section 11.1).
 
 A manually dispatched ship stays docked after arrival until ordered out again.
 
@@ -211,7 +221,7 @@ A manually dispatched ship stays docked after arrival until ordered out again.
 ## 8. Automated routes
 
 - A route is an ordered loop of two or more stops assigned to a ship.
-- Each stop has: which freight is eligible, whether to carry passengers, automatic provisioning on or off, and a minimum departure load in the relevant unit (tonnes for freight, passengers for berths).
+- Each stop has: which freight is eligible, whether to carry passengers, automatic provisioning on or off (the dispatch top-up yes/no in section 6.6), and a minimum departure load in the relevant unit (tonnes for freight, passengers for berths).
 - A leg can be marked as an explicitly empty repositioning leg.
 - The route editor estimates revenue, costs, total transit time, and profit per game year for the **whole circuit**, including empty legs. Any figure that depends on future bookings or waiting time is labelled as an estimate.
 - Automated departures use exactly the same dispatch rules and code as manual ones.
@@ -229,7 +239,7 @@ Events at the same tick are processed in this order: (1) arrivals, by ship id; (
 - The game opens on the galaxy map with the starter ship selected.
 - Pan, zoom, select a system, select a moving ship, follow a selected ship as it travels.
 - Active routes are drawn, and ships appear at their actual positions along each leg.
-- Zooming in on a selected ship moves into a close-up of that vessel that keeps its identity and motion, and shows: manifest, crew and passengers, remaining supplies, installed drive, destination, progress, ETA.
+- Zooming in on a selected ship moves into a close-up of that vessel that keeps its identity and motion, and shows: manifest, crew and passengers, remaining supplies (the read-only in-flight figure in section 6.7, in whole kilograms), installed drive, destination, progress, ETA.
 - Map inspection and route planning stay available while ships travel and while the clock is paused.
 
 ### 9.2 System view
@@ -279,7 +289,7 @@ This is how a broke player recovers. It replaces the brief's emergency contract.
 
 ### 11.1 Contents
 
-Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\LocalLow\spacetrade2\spacetrade2\saves\`). A save holds: save format version, galaxy seed and the generated galaxy, random generator state, clock tick, selected speed, pause state, market supply, demand, bookings, rates and reservations, credits, ships with provisions and cost, in-flight voyages with locked terms, route orders and waiting or blocked state, in-system toggles, notifications, and the real-world UTC timestamp of the save.
+Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\LocalLow\spacetrade2\spacetrade2\saves\`). A save holds: save format version, galaxy seed and the generated galaxy, random generator state, clock tick, selected speed, pause state, market supply, demand, bookings, rates and reservations, credits, ships with provisions and cost, in-flight voyages with locked terms, every delivery receipt, route orders and waiting or blocked state, in-system toggles, notifications, and the real-world UTC timestamp of the save.
 
 ### 11.2 Writing
 

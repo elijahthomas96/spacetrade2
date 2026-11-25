@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using SpaceTrade.Sim.Events;
 using SpaceTrade.Sim.Markets;
 using SpaceTrade.Sim.Ships;
@@ -16,6 +17,7 @@ namespace SpaceTrade.Sim
     {
         private bool _advancing;
         private readonly List<Ship> _ships = new List<Ship>();
+        private readonly List<VoyageReceipt> _receipts = new List<VoyageReceipt>();
         private int _nextShipId = 1;
 
         public SimClock Clock { get; }
@@ -32,6 +34,9 @@ namespace SpaceTrade.Sim
         public IReadOnlyList<Ship> Ships => _ships;
 
         public Ship FindShip(int id) => _ships.Find(s => s.Id == id);
+
+        /// <summary>Every delivery receipt, in the order the ships arrived.</summary>
+        public IReadOnlyList<VoyageReceipt> Receipts => _receipts;
 
         public Simulation(long startTick = 0, ClockSpeed speed = ClockSpeed.X1, bool paused = false)
         {
@@ -92,11 +97,108 @@ namespace SpaceTrade.Sim
             if (plan == null) throw new ArgumentNullException(nameof(plan));
             var quote = Quote(plan);
             if (!quote.IsFeasible) return CommandResult.Fail(string.Join(" ", quote.Problems));
-            var ship = FindShip(plan.ShipId);
+            BuyShortfall(FindShip(plan.ShipId), quote);
+            return CommandResult.Ok();
+        }
+
+        /// <summary>Buys exactly the quoted shortfall, moving the credits into the ship's supplies at cost. The quote must be feasible.</summary>
+        private void BuyShortfall(Ship ship, VoyageQuote quote)
+        {
             foreach (var s in quote.Supplies)
                 if (s.ShortfallKg > 0) ship.Supply(s.Kind).Add(s.ShortfallKg, s.TopUpCost);
             Credits -= quote.TopUpCost;
+        }
+
+        /// <summary>
+        /// Sends a docked ship on a voyage (spec 6.6), as one transaction: quote, reserve freight, demand,
+        /// and seats, buy the top-up if <paramref name="buyTopUp"/> allows it, lock the terms, and depart.
+        /// With <paramref name="buyTopUp"/> false a ship short of any supply is refused. A refused
+        /// dispatch changes nothing.
+        /// </summary>
+        public CommandResult Dispatch(VoyagePlan plan, bool buyTopUp)
+        {
+            if (plan == null) throw new ArgumentNullException(nameof(plan));
+            var quote = Quote(plan);
+            if (!quote.IsFeasible) return CommandResult.Fail(string.Join(" ", quote.Problems));
+            var ship = FindShip(plan.ShipId);
+
+            if (!buyTopUp)
+            {
+                var shortages = new List<string>();
+                foreach (var s in quote.Supplies)
+                    if (s.ShortfallKg > 0) shortages.Add($"{Format.Tonnes(s.ShortfallKg)} of {s.Kind.ToString().ToLowerInvariant()}");
+                if (shortages.Count > 0)
+                    return CommandResult.Fail($"{ship.Name} is short of {string.Join(", ", shortages)} for this voyage (top-up {Format.Credits(quote.TopUpCost)} credits). Press Provision first, or dispatch with the top-up.");
+            }
+
+            var reserved = Market.TryReserve(new ReservationRequest(quote.OriginId, quote.DestinationId, plan.Freight, plan.Passengers), out var reservation);
+            if (!reserved.Succeeded) return reserved;
+            if (reservation.FreightRevenue != quote.FreightRevenue || reservation.FarePerPassenger != quote.FarePerPassenger)
+            {
+                Market.Release(reservation);
+                return CommandResult.Fail($"The market's rates ({Format.Credits(reservation.FreightRevenue)} freight, {Format.Credits(reservation.FarePerPassenger)} per passenger) differ from the quote's ({Format.Credits(quote.FreightRevenue)}, {Format.Credits(quote.FarePerPassenger)}). Nothing was dispatched.");
+            }
+
+            var freight = new List<LockedFreight>();
+            foreach (var f in reservation.Freight) freight.Add(new LockedFreight(f.CommodityId, f.Tonnes, f.RatePerTonne));
+            var voyage = new Voyage(ship.Id, quote.OriginId, quote.DestinationId, quote.DistanceMilliLy, ship.DriveId,
+                quote.DepartureTick, checked(quote.DepartureTick + quote.TransitTicks), freight, reservation.Passengers, reservation.FarePerPassenger,
+                quote.Fuel.RequiredKg, quote.Food.RequiredKg, quote.Water.RequiredKg);
+
+            // Nothing below can fail.
+            BuyShortfall(ship, quote);
+            ship.DockedSystemId = null;
+            ship.Voyage = voyage;
+            Schedule(voyage.ArrivalTick, new ArrivalEvent(ship.Id));
             return CommandResult.Ok();
+        }
+
+        /// <summary>
+        /// Arrival settlement (spec 6.7), run by the ship's arrival event: dock at the destination, use up the
+        /// locked supplies once, pay the locked freight and fares once, and keep the receipt.
+        /// </summary>
+        internal void SettleArrival(int shipId)
+        {
+            var ship = FindShip(shipId);
+            var voyage = ship?.Voyage ?? throw new InvalidOperationException($"Ship {shipId} has no voyage to settle.");
+            if (voyage.ArrivalTick != CurrentTick)
+                throw new InvalidOperationException($"Ship {shipId} is due at tick {voyage.ArrivalTick}, not {CurrentTick}.");
+
+            var consumed = new List<ConsumedSupply>();
+            foreach (var kind in new[] { SupplyKind.Fuel, SupplyKind.Food, SupplyKind.Water })
+            {
+                long kg = voyage.UseKg(kind);
+                consumed.Add(new ConsumedSupply(kind, kg, ship.Supply(kind).Use(kg)));
+            }
+            Credits = checked(Credits + voyage.Payout);
+            ship.Voyage = null;
+            ship.DockedSystemId = voyage.DestinationId;
+            _receipts.Add(new VoyageReceipt(ship, voyage, consumed));
+        }
+
+        /// <summary>
+        /// The kilograms of a supply to show as aboard, for display only (spec 6.7, 9.1). Docked: what is
+        /// aboard. In transit: what is aboard less the share of the voyage's locked use for the time
+        /// elapsed so far. Never stored; changes nothing.
+        /// </summary>
+        public long RemainingSupplyKg(int shipId, SupplyKind kind)
+        {
+            var ship = FindShip(shipId) ?? throw new ArgumentException($"There is no ship with id {shipId}.", nameof(shipId));
+            long aboard = ship.Supply(kind).Kg;
+            return ship.Voyage == null ? aboard : aboard - ship.Voyage.UsedSoFarKg(kind, CurrentTick);
+        }
+
+        /// <summary>Every stored value in a fixed text layout: clock, credits, ships and voyages, receipts, events, and market.</summary>
+        public string DescribeState()
+        {
+            var sb = new StringBuilder();
+            sb.Append("tick=").Append(Clock.Tick).Append(" speed=").Append(Clock.Speed).Append(" paused=").Append(Clock.IsPaused)
+              .Append(" credits=").Append(Credits).Append(" nextShip=").Append(_nextShipId).Append('\n');
+            foreach (var s in _ships) sb.Append(s.DescribeState()).Append('\n');
+            foreach (var r in _receipts) sb.Append(r.DescribeState()).Append('\n');
+            sb.Append(Events.DescribeState());
+            if (Market != null) sb.Append(Market.DescribeState());
+            return sb.ToString();
         }
 
         public void Schedule(long tick, SimEvent ev)
