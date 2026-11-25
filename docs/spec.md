@@ -103,12 +103,13 @@ Generation must guarantee:
 - A **freight offer** is: origin system, commodity, destination system, tonnes available, contracted rate per tonne. Offers come from a producing industry paired with a consuming industry elsewhere.
 - **Supply** at the origin is finite and replenishes over game time up to a cap.
 - **Demand** at the destination is finite and replenishes over game time up to a cap.
+- When a galaxy's markets are created, supply and demand start at a tuning percent of their caps (`start.marketStartFill`, 0 to 100, default 100).
 - The amount a ship can load is limited by both supply and demand.
-- The rate per tonne is rolled within a range around `base rate x distance factor`, and re-rolled on a tuning interval (default every 90 game days) using the seeded generator. Published rates are what the player sees. The rate is locked at dispatch.
+- The rate per tonne is rolled within a range around `base rate x distance factor`, and re-rolled on a tuning interval (default every 90 game days) using the seeded generator. The save stores the rolled percent; the published rate is worked out from it and the current tuning. Published rates are what the player sees. The rate is locked at dispatch.
 
 ### 5.2 Passengers
 
-- A **passenger booking pool** is: origin, destination, passengers waiting, fare per passenger. Pools scale with the populations at both ends and replenish over time. Fares roll the same way freight rates do.
+- A **passenger booking pool** is: origin, destination, passengers waiting, fare per passenger. Pools scale with the populations at both ends and replenish over time. Fares roll the same way freight rates do. Pools start at a tuning percent of their size (`start.marketStartFill`, default 100).
 
 ### 5.3 Reservations
 
@@ -120,6 +121,14 @@ Generation must guarantee:
 ### 5.4 Provisions for sale
 
 Every port sells fuel, food, and water. Prices vary by system within tuning ranges (a refinery system sells cheap fuel, a farm system sells cheap food). Provision prices are shown in the system view.
+
+- Each system's price roll for fuel, food, and water is made once, when the markets are created, and never re-rolled.
+- The save stores the rolled percent, not the price. The price shown and charged is worked out from the current tuning: base price x combined industry modifier x stored roll. Edits to the tuning file therefore reach existing saves (section 12).
+- The combined industry modifier is every modifier for the system's industries multiplied together, then clamped to a tuning floor and ceiling (default 50 and 200 percent).
+
+### 5.5 Rounding
+
+Market prices, rates, fares, pool sizes, and starting amounts are calculated exactly from whole numbers and rounded once, at the end, to the nearest whole number, with exact halves rounding up.
 
 ## 6. Ships and voyages
 
@@ -285,12 +294,12 @@ Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\Local
 
 One JSON file (a plain text data format), at `game/Assets/StreamingAssets/tuning.json`. In a built game it sits at `spacetrade2_Data\StreamingAssets\tuning.json` and can be edited with any text editor. Sections:
 
-- **start:** starting credits, starter ship class and drive, opening-offer rules.
+- **start:** starting credits, starter ship class and drive, opening-offer rules, market starting fill (percent of cap, 0 to 100, separately for freight supply, destination demand, and passenger pools; default 100).
 - **galaxy:** system count range, distance ranges, maximum hop distance `maxHopMilliLy` (default 7,000 milli-ly; must be at least the nearest-neighbour maximum), industries per system, shipyard count, name list.
 - **commodities:** per commodity base rate per tonne, rate roll range, supply and demand caps, replenish amounts and intervals.
 - **passengers:** base fare, fare roll range, pool sizes, replenish rates.
 - **rates:** distance factor, re-roll interval.
-- **provisions:** base prices for fuel, food, water, and per-industry price modifiers; food and water per person per day; people mass.
+- **provisions:** base prices for fuel, food, water, and per-industry price modifiers; floor and ceiling for the combined modifier (default 50 and 200 percent); food and water per person per day; people mass.
 - **ships:** per class dry mass, hold, tank, berths, crew, price, in-system daily income.
 - **drives:** per tier speed, price, fuel kg per tonne-ly.
 - **shipyards:** stock sizes, restock interval, local price variation.

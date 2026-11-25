@@ -1,5 +1,6 @@
 using System;
 using SpaceTrade.Sim.Events;
+using SpaceTrade.Sim.Markets;
 using SpaceTrade.Sim.Timing;
 
 namespace SpaceTrade.Sim
@@ -17,11 +18,27 @@ namespace SpaceTrade.Sim
 
         public long CurrentTick => Clock.Tick;
 
+        /// <summary>Null until <see cref="AttachMarket"/> is called.</summary>
+        public Market Market { get; private set; }
+
         public Simulation(long startTick = 0, ClockSpeed speed = ClockSpeed.X1, bool paused = false)
         {
             if (startTick < 0) throw new ArgumentOutOfRangeException(nameof(startTick), startTick, "Start tick cannot be negative.");
             if (!ClockSpeeds.IsValid(speed)) throw new ArgumentOutOfRangeException(nameof(speed), (int)speed, "Speed must be 1x, 3x, or 5x.");
             Clock = new SimClock(startTick, speed, paused);
+        }
+
+        /// <summary>Installs the market and schedules each system's first replenishment event.</summary>
+        public void AttachMarket(Market market)
+        {
+            if (market == null) throw new ArgumentNullException(nameof(market));
+            if (Market != null) throw new InvalidOperationException("A market is already attached.");
+            if (_advancing) throw new InvalidOperationException("A market cannot be attached from inside an event.");
+            if (market.CreatedTick > CurrentTick)
+                throw new ArgumentException($"The market was created at tick {market.CreatedTick}, after the current tick {CurrentTick}.", nameof(market));
+            Market = market;
+            foreach (var s in market.Galaxy.Systems)
+                Schedule(market.NextEventTick(s.Id, CurrentTick), new MarketEvent(s.Id));
         }
 
         public void Schedule(long tick, SimEvent ev)

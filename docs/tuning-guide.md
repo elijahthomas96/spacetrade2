@@ -17,7 +17,7 @@ Every economy number in the game lives in one file, `game/Assets/StreamingAssets
 - Misspelled or extra field names are errors too, so a typo never silently does nothing.
 - Ids (`"courier"`, `"ore"`, `"refinery"`) link sections together. If you rename an id, rename every place that uses it.
 
-Some fields are used by rules that arrive in later build sessions (markets in session 4, ships in 5, shipyards in 8, automated routes in 9). Their meaning is fixed here; later sessions may add fields, and will update this guide when they do.
+Some fields are used by rules that arrive in later build sessions (ships in 5, shipyards in 8, automated routes in 9). Their meaning is fixed here; later sessions may add fields, and will update this guide when they do. Market rules (session 4) are described in "How markets use these numbers" below.
 
 ## start
 
@@ -28,6 +28,9 @@ Some fields are used by rules that arrive in later build sessions (markets in se
 | `starterDrive` | id from `drives` | The drive fitted to that starting ship. |
 | `openingOffers.minFeasibleJobs` | jobs | The start port must offer at least this many jobs that the starting ship can fly and the player can afford. |
 | `openingOffers.minProfitableJobs` | jobs | Of those, at least this many must show a profit in the real quote. Cannot be more than `minFeasibleJobs`. |
+| `marketStartFill.supplyPercent` | percent, 0 to 100 | How full each system's freight supply is when a new galaxy's markets are created, as a percent of `supplyCapTonnes`. 100 = full. |
+| `marketStartFill.demandPercent` | percent, 0 to 100 | The same for each destination's demand, as a percent of `demandCapTonnes`. |
+| `marketStartFill.passengerPercent` | percent, 0 to 100 | The same for each passenger pool, as a percent of that route's pool size. |
 
 ## galaxy
 
@@ -77,7 +80,7 @@ A list. Each freight commodity has:
 | `baseFare` | credits per passenger | Starting point for a fare. The distance factor in `rates` scales it. |
 | `fareRollMinPercent`, `fareRollMaxPercent` | percent | Fares roll in this range, the same way freight rates do. |
 | `poolCapBasePassengers` | passengers | Every route between two systems can hold at least this many waiting passengers. |
-| `poolCapExtraPerTenMillionPopulation` | passengers | Extra waiting-passenger room for every 10 million people living at the two ends combined. |
+| `poolCapExtraPerTenMillionPopulation` | passengers | Extra waiting-passenger room for every 10 million people living at the two ends combined, counted proportionally (35 million people gives 3.5 times this). |
 | `hubPoolBonusPercent` | percent | Extra room on routes from a population hub. 100 means double. |
 | `replenishPassengers` | passengers | How many new passengers arrive per interval, up to the cap. |
 | `replenishIntervalDays` | game days | How often new passengers arrive. |
@@ -96,12 +99,22 @@ A list. Each freight commodity has:
 |---|---|---|
 | `fuelBasePricePerTonne`, `foodBasePricePerTonne`, `waterBasePricePerTonne` | credits per tonne | Typical prices for ship supplies. |
 | `priceRollMinPercent`, `priceRollMaxPercent` | percent | Each system's prices vary at random within this range of the base price. |
-| `industryModifiers` | list | Systems with a given industry sell some supplies cheaper or dearer. Each entry has `industry` (an industry id) and `fuelPercent`, `foodPercent`, `waterPercent` (100 = no change, 70 = 30 percent cheaper). One entry per industry at most. |
+| `industryModifiers` | list | Systems with a given industry sell some supplies cheaper or dearer. Each entry has `industry` (an industry id) and `fuelPercent`, `foodPercent`, `waterPercent` (100 = no change, 70 = 30 percent cheaper). One entry per industry at most. When a system has several industries with entries, their percents multiply (70 and 70 give 49). |
+| `combinedModifierMinPercent`, `combinedModifierMaxPercent` | percent | Floor and ceiling for the multiplied-together industry modifier. With the defaults (50 and 200), two 70 percent modifiers give 50 percent, not 49. The minimum must be at least 1 and no more than the maximum. |
 | `foodGramsPerPersonPerDay` | grams | Food each person aboard (crew and passengers) eats per game day. |
 | `waterGramsPerPersonPerDay` | grams | Drinking water each person uses per game day. |
 | `personMassKg` | kilograms | Mass of one person with luggage, counted in the ship's loaded mass. |
 
 Voyages last game years, so small changes to the per-person food and water amounts have a big effect on how much hold space supplies take.
+
+## How markets use these numbers
+
+- **Prices are worked out, not stored.** For freight rates, passenger fares, and provision prices, a save keeps only the random roll (a percent). The number the player sees is worked out each time from that roll and the current tuning file. Edit a base price, the distance factor, or a modifier, and existing saves show the new prices straight away. Rates and fares already locked into a voyage in flight do not change.
+- **Freight rate** = `baseRatePerTonne` x distance factor x roll, where the roll is a whole percent between `rateRollMinPercent` and `rateRollMaxPercent`. **Passenger fare** is the same with `baseFare` and the fare roll range.
+- **Provision price** = base price x combined industry modifier (clamped to the floor and ceiling) x the system's roll, a whole percent between `priceRollMinPercent` and `priceRollMaxPercent`. Provision rolls are made once, when a galaxy's markets are created, and never re-rolled, so a cheap-fuel port stays cheap.
+- **Rounding.** Every market figure (rates, fares, prices, pool sizes, starting amounts) is calculated exactly and rounded once, at the end, to the nearest whole number. Exact halves round up.
+- **Schedules** count from the moment the markets were created. Every `replenishIntervalDays` (per commodity) supply and demand grow by their replenish amounts; every `passengers.replenishIntervalDays` each pool gains `replenishPassengers`; every `rates.rerollIntervalDays` every freight rate and passenger fare is re-rolled. Nothing grows past its cap, and growing back never removes stock that is already above a cap you lowered.
+- **Offers.** There is one freight offer for every pair of a system that produces a commodity and a different system that consumes it, and one passenger pool for every ordered pair of systems. Supply at an origin is shared by all its offers for that commodity, and demand at a destination is shared by every origin delivering there.
 
 ## ships
 

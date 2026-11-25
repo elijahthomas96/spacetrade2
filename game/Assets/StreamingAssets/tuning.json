@@ -6,6 +6,11 @@
     "openingOffers": {
       "minFeasibleJobs": 2,
       "minProfitableJobs": 1
+    },
+    "marketStartFill": {
+      "supplyPercent": 100,
+      "demandPercent": 100,
+      "passengerPercent": 100
     }
   },
   "galaxy": {
@@ -212,6 +217,8 @@
         "waterPercent": 120
       }
     ],
+    "combinedModifierMinPercent": 50,
+    "combinedModifierMaxPercent": 200,
     "foodGramsPerPersonPerDay": 600,
     "waterGramsPerPersonPerDay": 400,
     "personMassKg": 100

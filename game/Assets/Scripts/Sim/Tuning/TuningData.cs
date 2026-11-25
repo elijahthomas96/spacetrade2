@@ -32,12 +32,21 @@ namespace SpaceTrade.Sim.Tuning
         public string StarterShipClass;
         public string StarterDrive;
         public OpeningOfferTuning OpeningOffers = new OpeningOfferTuning();
+        public MarketStartFillTuning MarketStartFill = new MarketStartFillTuning();
     }
 
     public sealed class OpeningOfferTuning
     {
         public int MinFeasibleJobs;
         public int MinProfitableJobs;
+    }
+
+    /// <summary>How full each market stock is when a market is created, as a percent of its cap (0 to 100).</summary>
+    public sealed class MarketStartFillTuning
+    {
+        public int SupplyPercent;
+        public int DemandPercent;
+        public int PassengerPercent;
     }
 
     public sealed class GalaxyTuning
@@ -107,6 +116,8 @@ namespace SpaceTrade.Sim.Tuning
         public int PriceRollMinPercent;
         public int PriceRollMaxPercent;
         public List<ProvisionModifierTuning> IndustryModifiers = new List<ProvisionModifierTuning>();
+        public int CombinedModifierMinPercent;
+        public int CombinedModifierMaxPercent;
         public int FoodGramsPerPersonPerDay;
         public int WaterGramsPerPersonPerDay;
         public int PersonMassKg;

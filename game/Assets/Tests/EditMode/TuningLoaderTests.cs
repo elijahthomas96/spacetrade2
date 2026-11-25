@@ -108,6 +108,48 @@ namespace SpaceTrade.Sim.Tests
         }
 
         [Test]
+        public void MarketStartFill_Above100_NamesField()
+        {
+            var text = TestTuning.With(TestTuning.Text(), "\"supplyPercent\": 100", "\"supplyPercent\": 101");
+            var result = TuningLoader.LoadText(text);
+            AssertFellBackWithError(result, "start.marketStartFill.supplyPercent");
+            StringAssert.Contains("must be at most 100", result.Errors[0]);
+        }
+
+        [Test]
+        public void MarketStartFill_Negative_NamesField()
+        {
+            var text = TestTuning.With(TestTuning.Text(), "\"passengerPercent\": 100", "\"passengerPercent\": -1");
+            AssertFellBackWithError(TuningLoader.LoadText(text), "start.marketStartFill.passengerPercent");
+        }
+
+        [Test]
+        public void MarketStartFill_ZeroAnd100_AreAccepted()
+        {
+            var text = TestTuning.With(TestTuning.Text(), "\"demandPercent\": 100", "\"demandPercent\": 0");
+            var result = TuningLoader.LoadText(text);
+            Assert.IsEmpty(result.Errors, string.Join("\n", result.Errors));
+            Assert.AreEqual(0, result.Tuning.Start.MarketStartFill.DemandPercent);
+            Assert.AreEqual(100, result.Tuning.Start.MarketStartFill.SupplyPercent);
+        }
+
+        [Test]
+        public void CombinedModifierFloorAboveCeiling_NamesField()
+        {
+            var text = TestTuning.With(TestTuning.Text(), "\"combinedModifierMinPercent\": 50", "\"combinedModifierMinPercent\": 250");
+            var result = TuningLoader.LoadText(text);
+            AssertFellBackWithError(result, "provisions.combinedModifierMaxPercent");
+            StringAssert.Contains("combinedModifierMinPercent", result.Errors[0]);
+        }
+
+        [Test]
+        public void CombinedModifierFloorZero_NamesField()
+        {
+            var text = TestTuning.With(TestTuning.Text(), "\"combinedModifierMinPercent\": 50", "\"combinedModifierMinPercent\": 0");
+            AssertFellBackWithError(TuningLoader.LoadText(text), "provisions.combinedModifierMinPercent");
+        }
+
+        [Test]
         public void UnknownReference_NamesField()
         {
             var text = TestTuning.With(TestTuning.Text(), "\"starterShipClass\": \"courier\"", "\"starterShipClass\": \"yacht\"");

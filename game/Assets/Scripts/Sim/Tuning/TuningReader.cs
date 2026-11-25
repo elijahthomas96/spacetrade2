@@ -58,6 +58,11 @@ namespace SpaceTrade.Sim.Tuning
             s.OpeningOffers.MinFeasibleJobs = o.Int("minFeasibleJobs", 1, 100);
             s.OpeningOffers.MinProfitableJobs = o.Int("minProfitableJobs", 0, 100);
             o.RejectUnknownFields();
+            var f = r.Child("marketStartFill");
+            s.MarketStartFill.SupplyPercent = f.Int("supplyPercent", 0, 100);
+            s.MarketStartFill.DemandPercent = f.Int("demandPercent", 0, 100);
+            s.MarketStartFill.PassengerPercent = f.Int("passengerPercent", 0, 100);
+            f.RejectUnknownFields();
             r.RejectUnknownFields();
             return s;
         }
@@ -146,6 +151,8 @@ namespace SpaceTrade.Sim.Tuning
                 PriceRollMinPercent = r.Int("priceRollMinPercent", 1, MaxPercent),
                 PriceRollMaxPercent = r.Int("priceRollMaxPercent", 1, MaxPercent),
                 IndustryModifiers = ReadList(r, "industryModifiers", ReadModifier, "industry"),
+                CombinedModifierMinPercent = r.Int("combinedModifierMinPercent", 1, MaxPercent),
+                CombinedModifierMaxPercent = r.Int("combinedModifierMaxPercent", 1, MaxPercent),
                 FoodGramsPerPersonPerDay = r.Int("foodGramsPerPersonPerDay", 0, 1_000_000),
                 WaterGramsPerPersonPerDay = r.Int("waterGramsPerPersonPerDay", 0, 1_000_000),
                 PersonMassKg = r.Int("personMassKg", 1, 100_000),

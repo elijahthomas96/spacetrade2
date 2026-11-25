@@ -18,6 +18,7 @@ namespace SpaceTrade.Sim.Tuning
                     StarterShipClass = "courier",
                     StarterDrive = "alcubierre_1_50",
                     OpeningOffers = new OpeningOfferTuning { MinFeasibleJobs = 2, MinProfitableJobs = 1 },
+                    MarketStartFill = new MarketStartFillTuning { SupplyPercent = 100, DemandPercent = 100, PassengerPercent = 100 },
                 },
                 Galaxy = new GalaxyTuning
                 {
@@ -88,6 +89,8 @@ namespace SpaceTrade.Sim.Tuning
                         new ProvisionModifierTuning { Industry = "agricultural_system", FuelPercent = 100, FoodPercent = 70, WaterPercent = 80 },
                         new ProvisionModifierTuning { Industry = "mining_colony", FuelPercent = 100, FoodPercent = 120, WaterPercent = 120 },
                     },
+                    CombinedModifierMinPercent = 50,
+                    CombinedModifierMaxPercent = 200,
                     FoodGramsPerPersonPerDay = 600,
                     WaterGramsPerPersonPerDay = 400,
                     PersonMassKg = 100,

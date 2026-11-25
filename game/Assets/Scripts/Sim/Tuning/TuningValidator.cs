@@ -85,6 +85,7 @@ namespace SpaceTrade.Sim.Tuning
 
             // provisions
             Order("provisions", "priceRollMinPercent", t.Provisions.PriceRollMinPercent, "priceRollMaxPercent", t.Provisions.PriceRollMaxPercent);
+            Order("provisions", "combinedModifierMinPercent", t.Provisions.CombinedModifierMinPercent, "combinedModifierMaxPercent", t.Provisions.CombinedModifierMaxPercent);
             foreach (var m in t.Provisions.IndustryModifiers)
                 if (m.Industry.Length > 0 && t.FindIndustry(m.Industry) == null)
                     errors.Add($"provisions.industryModifiers[{m.Industry}].industry: \"{m.Industry}\" is not the id of any entry in industries");
