@@ -92,8 +92,8 @@ Six freight commodities and six industry types. Counts and names are tuning data
 Generation must guarantee:
 
 - At least one closed three-stop freight circuit exists (for example ore to a refinery, machinery to a farm system, food back to the colony).
-- Every system can be reached and has at least one export and one import.
-- At least two systems have shipyards, and the start system is within one starter-drive voyage of one.
+- Every system can be reached and has at least one export and one import. A system is reachable if a chain of hops, each no longer than `maxHopMilliLy` (tuning, default 7 ly), connects it to the start system.
+- At least two systems have shipyards, and the start system is within `maxHopMilliLy` of one.
 - The map and system panels show enough (exports, imports, rates, distances) for the player to find circuits without outside notes.
 
 ## 5. Markets
@@ -286,7 +286,7 @@ Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\Local
 One JSON file (a plain text data format), at `game/Assets/StreamingAssets/tuning.json`. In a built game it sits at `spacetrade2_Data\StreamingAssets\tuning.json` and can be edited with any text editor. Sections:
 
 - **start:** starting credits, starter ship class and drive, opening-offer rules.
-- **galaxy:** system count range, distance ranges, industries per system, shipyard count, name list.
+- **galaxy:** system count range, distance ranges, maximum hop distance `maxHopMilliLy` (default 7,000 milli-ly; must be at least the nearest-neighbour maximum), industries per system, shipyard count, name list.
 - **commodities:** per commodity base rate per tonne, rate roll range, supply and demand caps, replenish amounts and intervals.
 - **passengers:** base fare, fare roll range, pool sizes, replenish rates.
 - **rates:** distance factor, re-roll interval.
@@ -300,6 +300,7 @@ Rules:
 
 - The file is read when the game starts. Changes apply to existing saves for anything not already locked (in-flight voyages keep their locked terms; the generated galaxy does not change).
 - The file is validated on load. A bad value produces a message naming the field, and the game falls back to built-in defaults rather than crashing.
+- Validation includes a starter-range check: the starter ship class with the starter drive, a full fuel tank, crew only, and the food and water that crew needs, must be able to fly `maxHopMilliLy`. Failure gives a field-named error like any other.
 - A companion `docs/tuning-guide.md` explains each field in plain language with its unit.
 - Automated tests use a fixed test copy of the tuning data, so editing the live file never breaks the test suite. One separate test checks that the live file loads and still satisfies the new-game guarantees in section 6.4.
 

@@ -1,0 +1,289 @@
+{
+  "start": {
+    "startingCredits": 200000,
+    "starterShipClass": "courier",
+    "starterDrive": "alcubierre_1_50",
+    "openingOffers": {
+      "minFeasibleJobs": 2,
+      "minProfitableJobs": 1
+    }
+  },
+  "galaxy": {
+    "systemCountMin": 8,
+    "systemCountMax": 12,
+    "nearestNeighbourMinMilliLy": 2500,
+    "nearestNeighbourMaxMilliLy": 7000,
+    "maxHopMilliLy": 7000,
+    "industriesPerSystemMin": 1,
+    "industriesPerSystemMax": 3,
+    "shipyardCountMin": 2,
+    "shipyardCountMax": 3,
+    "populationMinMillions": 1,
+    "populationMaxMillions": 60,
+    "names": [
+      "Achernar",
+      "Brightwater",
+      "Cassia",
+      "Dunmore",
+      "Elara",
+      "Fenwick",
+      "Galen's Rest",
+      "Halcyon",
+      "Iona",
+      "Juno",
+      "Kestrel",
+      "Lumen",
+      "Marrow",
+      "Nyx",
+      "Orison",
+      "Perdita",
+      "Quill",
+      "Rhea",
+      "Solace",
+      "Tamsin",
+      "Umber",
+      "Vesper",
+      "Wren",
+      "Zephyr"
+    ]
+  },
+  "industries": [
+    {
+      "id": "mining_colony",
+      "name": "Mining colony",
+      "consumes": ["food", "machinery"],
+      "produces": ["ore"],
+      "producesPassengers": false,
+      "enablesShipyard": false
+    },
+    {
+      "id": "refinery",
+      "name": "Refinery",
+      "consumes": ["ore"],
+      "produces": ["metals", "chemicals"],
+      "producesPassengers": false,
+      "enablesShipyard": false
+    },
+    {
+      "id": "factory",
+      "name": "Factory",
+      "consumes": ["metals", "chemicals"],
+      "produces": ["machinery", "consumer_goods"],
+      "producesPassengers": false,
+      "enablesShipyard": false
+    },
+    {
+      "id": "agricultural_system",
+      "name": "Agricultural system",
+      "consumes": ["machinery", "chemicals"],
+      "produces": ["food"],
+      "producesPassengers": false,
+      "enablesShipyard": false
+    },
+    {
+      "id": "population_hub",
+      "name": "Population hub",
+      "consumes": ["food", "consumer_goods"],
+      "produces": [],
+      "producesPassengers": true,
+      "enablesShipyard": false
+    },
+    {
+      "id": "shipyard_works",
+      "name": "Shipyard works",
+      "consumes": ["metals", "machinery"],
+      "produces": [],
+      "producesPassengers": false,
+      "enablesShipyard": true
+    }
+  ],
+  "commodities": [
+    {
+      "id": "ore",
+      "name": "Ore",
+      "baseRatePerTonne": 1500,
+      "rateRollMinPercent": 80,
+      "rateRollMaxPercent": 120,
+      "supplyCapTonnes": 60,
+      "demandCapTonnes": 60,
+      "supplyReplenishTonnes": 10,
+      "demandReplenishTonnes": 10,
+      "replenishIntervalDays": 30
+    },
+    {
+      "id": "metals",
+      "name": "Metals",
+      "baseRatePerTonne": 2500,
+      "rateRollMinPercent": 80,
+      "rateRollMaxPercent": 120,
+      "supplyCapTonnes": 60,
+      "demandCapTonnes": 60,
+      "supplyReplenishTonnes": 10,
+      "demandReplenishTonnes": 10,
+      "replenishIntervalDays": 30
+    },
+    {
+      "id": "chemicals",
+      "name": "Chemicals",
+      "baseRatePerTonne": 2800,
+      "rateRollMinPercent": 80,
+      "rateRollMaxPercent": 120,
+      "supplyCapTonnes": 60,
+      "demandCapTonnes": 60,
+      "supplyReplenishTonnes": 10,
+      "demandReplenishTonnes": 10,
+      "replenishIntervalDays": 30
+    },
+    {
+      "id": "machinery",
+      "name": "Machinery",
+      "baseRatePerTonne": 3500,
+      "rateRollMinPercent": 80,
+      "rateRollMaxPercent": 120,
+      "supplyCapTonnes": 60,
+      "demandCapTonnes": 60,
+      "supplyReplenishTonnes": 10,
+      "demandReplenishTonnes": 10,
+      "replenishIntervalDays": 30
+    },
+    {
+      "id": "consumer_goods",
+      "name": "Consumer goods",
+      "baseRatePerTonne": 3200,
+      "rateRollMinPercent": 80,
+      "rateRollMaxPercent": 120,
+      "supplyCapTonnes": 60,
+      "demandCapTonnes": 60,
+      "supplyReplenishTonnes": 10,
+      "demandReplenishTonnes": 10,
+      "replenishIntervalDays": 30
+    },
+    {
+      "id": "food",
+      "name": "Food",
+      "baseRatePerTonne": 2000,
+      "rateRollMinPercent": 80,
+      "rateRollMaxPercent": 120,
+      "supplyCapTonnes": 60,
+      "demandCapTonnes": 60,
+      "supplyReplenishTonnes": 10,
+      "demandReplenishTonnes": 10,
+      "replenishIntervalDays": 30
+    }
+  ],
+  "passengers": {
+    "baseFare": 10000,
+    "fareRollMinPercent": 80,
+    "fareRollMaxPercent": 120,
+    "poolCapBasePassengers": 4,
+    "poolCapExtraPerTenMillionPopulation": 1,
+    "hubPoolBonusPercent": 100,
+    "replenishPassengers": 2,
+    "replenishIntervalDays": 30
+  },
+  "rates": {
+    "distanceFactorBasePercent": 100,
+    "distanceFactorPerLyPercent": 40,
+    "rerollIntervalDays": 90
+  },
+  "provisions": {
+    "fuelBasePricePerTonne": 2000,
+    "foodBasePricePerTonne": 8000,
+    "waterBasePricePerTonne": 1000,
+    "priceRollMinPercent": 90,
+    "priceRollMaxPercent": 110,
+    "industryModifiers": [
+      {
+        "industry": "refinery",
+        "fuelPercent": 70,
+        "foodPercent": 100,
+        "waterPercent": 100
+      },
+      {
+        "industry": "agricultural_system",
+        "fuelPercent": 100,
+        "foodPercent": 70,
+        "waterPercent": 80
+      },
+      {
+        "industry": "mining_colony",
+        "fuelPercent": 100,
+        "foodPercent": 120,
+        "waterPercent": 120
+      }
+    ],
+    "foodGramsPerPersonPerDay": 600,
+    "waterGramsPerPersonPerDay": 400,
+    "personMassKg": 100
+  },
+  "ships": [
+    {
+      "id": "courier",
+      "name": "Courier",
+      "dryMassTonnes": 60,
+      "holdTonnes": 30,
+      "tankTonnes": 20,
+      "berths": 4,
+      "crew": 2,
+      "price": 1000000,
+      "inSystemDailyIncome": 17
+    },
+    {
+      "id": "bulk_freighter",
+      "name": "Bulk freighter",
+      "dryMassTonnes": 200,
+      "holdTonnes": 300,
+      "tankTonnes": 120,
+      "berths": 2,
+      "crew": 4,
+      "price": 3500000,
+      "inSystemDailyIncome": 50
+    },
+    {
+      "id": "passenger_liner",
+      "name": "Passenger liner",
+      "dryMassTonnes": 120,
+      "holdTonnes": 40,
+      "tankTonnes": 50,
+      "berths": 24,
+      "crew": 5,
+      "price": 2500000,
+      "inSystemDailyIncome": 40
+    }
+  ],
+  "drives": [
+    {
+      "id": "alcubierre_1_50",
+      "name": "Alcubierre 1.5c",
+      "speedMilliC": 1500,
+      "price": 150000,
+      "fuelKgPerTonneLy": 22
+    },
+    {
+      "id": "alcubierre_2_25",
+      "name": "Alcubierre 2.25c",
+      "speedMilliC": 2250,
+      "price": 600000,
+      "fuelKgPerTonneLy": 26
+    },
+    {
+      "id": "alcubierre_3_75",
+      "name": "Alcubierre 3.75c",
+      "speedMilliC": 3750,
+      "price": 1500000,
+      "fuelKgPerTonneLy": 32
+    }
+  ],
+  "shipyards": {
+    "shipStockPerClassMin": 1,
+    "shipStockPerClassMax": 2,
+    "driveStockPerTierMin": 1,
+    "driveStockPerTierMax": 3,
+    "restockIntervalDays": 180,
+    "priceRollMinPercent": 90,
+    "priceRollMaxPercent": 110
+  },
+  "automation": {
+    "recheckMinIntervalDays": 1
+  }
+}
