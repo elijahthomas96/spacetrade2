@@ -225,6 +225,37 @@ A manually dispatched ship stays docked after arrival until ordered out again.
 - A drive upgrade requires that specific ship to be docked at a yard that stocks that drive. The player can open any ship from anywhere on the map, but an upgrade order for a ship that is not docked at a stocking yard is rejected with the reason. This check lives in the simulation, not only the interface.
 - Before buying a drive, the player can pick a known route and see the cost and the time saved on it.
 
+### 7.1 Stock
+
+- A yard's stock is created with the markets, when the game is created. Every yard has an entry for every ship class and every drive in the tuning.
+- **Stock limits.** For each ship class and drive at each yard, a roll is made once, when the yard is created, and stored as a whole percent from 0 to 100. The limit is worked out from that roll and the current tuning: minimum + (maximum - minimum) x roll, rounded by the one rounding rule (section 5.5), using `shipStockPerClassMin`/`Max` for ships and `driveStockPerTierMin`/`Max` for drives. Edits to the minimum and maximum therefore reach existing saves.
+- **Which yards stock what.** A yard stocks an item when its limit is at least 1, or when it still has units of it left. "Out of stock" means it stocks the item but has none left right now. With the default minimum of 1, every yard stocks every class and drive; a minimum of 0 lets some yards not stock some items.
+- A new yard starts full: each item's count equals its limit.
+- **Restocking.** Every `restockIntervalDays`, counted from when the markets were created, each item a yard stocks gains `restockAmount` (default 1), never above its current limit. Stock above a lowered limit is never removed; it just stops growing. Restocks run in the market replenishment phase for that yard's system (section 8.1).
+- **Prices.** Each yard has one price roll, made once when the yard is created and stored as a whole percent in the `priceRoll` range. Every ship and drive at that yard costs its current tuning base price x that roll, rounded by the one rounding rule. Tuning price edits therefore reach existing saves.
+- Yard rolls and bought ships' names use the yards' own seeded generator, separate from the markets', so a seed's galaxy and market rolls never depend on its yards.
+
+### 7.2 Buying a ship
+
+- A ship can be bought at any yard from anywhere on the map, whether or not one of the player's ships is there. It is delivered docked at that yard.
+- A bought ship always comes with the slowest drive (the lowest `speedMilliC`; if two are equally slow, the first listed). Its price covers that drive, and buying it does not take a drive out of the yard's drive stock. A faster drive is a separate drive purchase, which can be made at once if that yard stocks it.
+- A bought ship starts with empty fuel, food, and water and with in-system transport off.
+- **Its name** comes from `shipNames`. While any listed name is not already in the fleet, one of those is drawn by the seeded generator. Once every listed name is in use, a name is drawn from the whole list and given the lowest number from 2 up that no ship in the fleet has ("Tern 2", then "Tern 3"). The same seed and commands always give the same names.
+- The purchase is refused, changing nothing, when the system has no shipyard, the yard does not sell that class, it has none in stock, or the credits do not cover the price. Credits exactly equal to the price are enough.
+
+### 7.3 Fitting a drive
+
+- The ship must be docked at a yard that stocks the drive (not in transit). A ship on in-system transport can be fitted; the toggle stays on and its daily pay count is not restarted.
+- Any stocked drive different from the installed one may be fitted at the full price, including a slower one. The old drive is gone, with no refund or trade-in. Fitting the drive already installed is refused with a reason.
+- Refusals give their numbers: the nearest yard that stocks the drive with its distance, stock, and price; the stock limit and next restock date when out of stock; the price, the credits, and the shortfall. Every problem that applies is listed, except for a ship in transit, which gets only the in-transit reason. A refused order changes nothing.
+- Buying a ship and fitting a drive take no game time and work while paused.
+
+### 7.4 The upgrade preview
+
+- The player picks a ship, a yard, a drive, and a route: an ordered loop of two or more systems, the last leg returning to the first (A to B to A for a simple run).
+- The preview shows the drive's price at that yard (the same figure the fitting charges) and how many are in stock, or a note that the yard cannot sell it. For each leg it shows the transit time with the current drive and with the new one, and the fuel each needs **for an empty ship with crew only** (no freight, no passengers, only the food and water the crew needs), in kilograms, worked out by the same provisioning math the quote uses. It shows the total time saved per loop (negative for a slower drive). Each leg is rounded up separately, as real voyages are.
+- The preview works for any ship, docked or in transit, from anywhere, and changes nothing.
+
 ## 8. Automated routes
 
 - A route is an ordered loop of two or more stops assigned to a ship.
@@ -237,7 +268,7 @@ A manually dispatched ship stays docked after arrival until ordered out again.
 
 ### 8.1 Deterministic ordering
 
-Events at the same tick are processed in this order: (1) arrivals, by ship id; (2) market replenishment and rate re-rolls, by system id; (3) in-system transport income, by ship id; (4) automated departure checks, by ship id. Competing reservations are resolved in that order, so the lower ship id wins a tie.
+Events at the same tick are processed in this order: (1) arrivals, by ship id; (2) market replenishment, rate re-rolls, and shipyard restocks, by system id; (3) in-system transport income, by ship id; (4) automated departure checks, by ship id. Competing reservations are resolved in that order, so the lower ship id wins a tie.
 
 ## 9. Interface
 
@@ -298,7 +329,7 @@ This is how a broke player recovers. It replaces the brief's emergency contract.
 
 ### 11.1 Contents
 
-Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\LocalLow\spacetrade2\spacetrade2\saves\`). A save holds: save format version, galaxy seed and the generated galaxy, random generator state, clock tick, selected speed, pause state, market supply, demand, bookings, rates and reservations, credits, ships with provisions and cost, in-flight voyages with locked terms, every delivery receipt, route orders and waiting or blocked state, in-system toggles with the tick each went on, whether the start port's opening rates are still held (section 6.4), notifications, and the real-world UTC timestamp of the save.
+Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\LocalLow\spacetrade2\spacetrade2\saves\`). A save holds: save format version, galaxy seed and the generated galaxy, random generator state, clock tick, selected speed, pause state, market supply, demand, bookings, rates and reservations, every shipyard's stock counts, stock-limit rolls, and price roll, credits, ships with provisions and cost, in-flight voyages with locked terms, every delivery receipt, route orders and waiting or blocked state, in-system toggles with the tick each went on, whether the start port's opening rates are still held (section 6.4), notifications, and the real-world UTC timestamp of the save.
 
 ### 11.2 Writing
 
@@ -331,9 +362,9 @@ One JSON file (a plain text data format), at `game/Assets/StreamingAssets/tuning
 - **rates:** distance factor, re-roll interval.
 - **provisions:** base prices for fuel, food, water, and per-industry price modifiers; floor and ceiling for the combined modifier (default 50 and 200 percent); food and water per person per day; people mass.
 - **ships:** per class dry mass, hold, tank, berths, crew, price, in-system daily income (at least 1).
-- **shipNames:** the list new ships are named from (section 6.4). At least one name, no blank names, no repeats.
+- **shipNames:** the list new ships are named from (sections 6.4 and 7.2). At least one name, no blank names, no repeats.
 - **drives:** per tier speed, price, fuel kg per tonne-ly.
-- **shipyards:** stock sizes, restock interval, local price variation.
+- **shipyards:** stock-limit ranges, restock interval, restock amount (default 1), local price variation (section 7.1).
 - **automation:** recheck behaviour limits.
 
 Rules:

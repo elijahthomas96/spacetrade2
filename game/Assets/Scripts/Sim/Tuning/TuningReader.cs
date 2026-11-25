@@ -201,6 +201,7 @@ namespace SpaceTrade.Sim.Tuning
                 DriveStockPerTierMin = r.Int("driveStockPerTierMin", 0, 1000),
                 DriveStockPerTierMax = r.Int("driveStockPerTierMax", 0, 1000),
                 RestockIntervalDays = r.Int("restockIntervalDays", 1, MaxDays),
+                RestockAmount = r.Int("restockAmount", 1, 1000),
                 PriceRollMinPercent = r.Int("priceRollMinPercent", 1, MaxPercent),
                 PriceRollMaxPercent = r.Int("priceRollMaxPercent", 1, MaxPercent),
             };

@@ -162,6 +162,8 @@ namespace SpaceTrade.Sim.Tuning
         public int DriveStockPerTierMin;
         public int DriveStockPerTierMax;
         public int RestockIntervalDays;
+        /// <summary>Units of each ship class and drive a yard stocks that are added every restock interval, up to its stock limit.</summary>
+        public int RestockAmount;
         public int PriceRollMinPercent;
         public int PriceRollMaxPercent;
     }

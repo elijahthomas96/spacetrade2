@@ -313,6 +313,7 @@
     "driveStockPerTierMin": 1,
     "driveStockPerTierMax": 3,
     "restockIntervalDays": 180,
+    "restockAmount": 1,
     "priceRollMinPercent": 90,
     "priceRollMaxPercent": 110
   },

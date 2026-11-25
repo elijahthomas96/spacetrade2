@@ -104,6 +104,7 @@ namespace SpaceTrade.Sim.Tuning
                     .Add("driveStockPerTierMin", t.Shipyards.DriveStockPerTierMin)
                     .Add("driveStockPerTierMax", t.Shipyards.DriveStockPerTierMax)
                     .Add("restockIntervalDays", t.Shipyards.RestockIntervalDays)
+                    .Add("restockAmount", t.Shipyards.RestockAmount)
                     .Add("priceRollMinPercent", t.Shipyards.PriceRollMinPercent)
                     .Add("priceRollMaxPercent", t.Shipyards.PriceRollMaxPercent))
                 .Add("automation", new JsonObjectBuilder()

@@ -13,7 +13,7 @@ namespace SpaceTrade.Sim
     /// The whole game state and the only place it changes. Ordinary play, offline catch-up,
     /// and debug skip all move time forward through <see cref="Advance"/>.
     /// </summary>
-    public sealed class Simulation
+    public sealed partial class Simulation
     {
         private bool _advancing;
         private readonly List<Ship> _ships = new List<Ship>();

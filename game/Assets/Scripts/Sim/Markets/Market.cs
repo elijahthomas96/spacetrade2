@@ -5,17 +5,21 @@ using System.Text;
 using SpaceTrade.Sim.Timing;
 using SpaceTrade.Sim.Tuning;
 using SpaceTrade.Sim.World;
+using SpaceTrade.Sim.Yards;
 
 namespace SpaceTrade.Sim.Markets
 {
     /// <summary>
-    /// Freight supply and demand, freight offers, passenger pools, and provision prices for every
-    /// system (spec 5). Stored state is stock levels and random rolls; caps, rates, fares, and prices
-    /// are worked out from the current tuning so tuning edits reach existing saves (spec 12).
+    /// Freight supply and demand, freight offers, passenger pools, provision prices, and shipyard stock
+    /// for every system (spec 5, 7). Stored state is stock levels and random rolls; caps, rates, fares,
+    /// stock limits, and prices are worked out from the current tuning so tuning edits reach existing saves (spec 12).
     /// </summary>
     public sealed class Market
     {
         private const long RandomSalt = 0x4D41524B4554;
+        private const long YardRandomSalt = 0x5941524453;
+
+        private readonly List<Shipyard> _yards = new List<Shipyard>();
 
         private readonly List<CommodityStock> _supplies = new List<CommodityStock>();
         private readonly List<CommodityStock> _demands = new List<CommodityStock>();
@@ -36,6 +40,15 @@ namespace SpaceTrade.Sim.Markets
         /// <summary>The market's own seeded generator. Its state is part of the save.</summary>
         public SeededRandom Random { get; }
 
+        /// <summary>
+        /// The shipyards' own seeded generator, separate from <see cref="Random"/> so yards never change a
+        /// seed's market rolls. Used for yard rolls at creation and for bought ships' names. Part of the save.
+        /// </summary>
+        public SeededRandom YardRandom { get; }
+
+        /// <summary>One per shipyard system, ordered by system id.</summary>
+        public IReadOnlyList<Shipyard> Shipyards => _yards;
+
         /// <summary>Ordered by system id, then commodity in tuning order.</summary>
         public IReadOnlyList<CommodityStock> Supplies => _supplies;
         public IReadOnlyList<CommodityStock> Demands => _demands;
@@ -55,12 +68,13 @@ namespace SpaceTrade.Sim.Markets
         /// </summary>
         public bool HoldsOpeningRates { get; private set; }
 
-        private Market(Galaxy galaxy, TuningData tuning, long createdTick, SeededRandom random)
+        private Market(Galaxy galaxy, TuningData tuning, long createdTick, SeededRandom random, SeededRandom yardRandom)
         {
             Galaxy = galaxy;
             Tuning = tuning;
             CreatedTick = createdTick;
             Random = random;
+            YardRandom = yardRandom;
         }
 
         /// <summary>
@@ -73,7 +87,7 @@ namespace SpaceTrade.Sim.Markets
             if (tuning == null) throw new ArgumentNullException(nameof(tuning));
             if (createdTick < 0) throw new ArgumentOutOfRangeException(nameof(createdTick), createdTick, "Tick cannot be negative.");
 
-            var m = new Market(galaxy, tuning, createdTick, new SeededRandom(galaxy.Seed ^ RandomSalt));
+            var m = new Market(galaxy, tuning, createdTick, new SeededRandom(galaxy.Seed ^ RandomSalt), new SeededRandom(galaxy.Seed ^ YardRandomSalt));
             var fill = tuning.Start.MarketStartFill;
             var systems = galaxy.Systems;
 
@@ -119,7 +133,25 @@ namespace SpaceTrade.Sim.Markets
                 m._provisionRolls.Add(new ProvisionRoll(s.Id, fuel, food, water));
             }
 
+            var y = tuning.Shipyards;
+            foreach (var s in systems)
+            {
+                if (!s.HasShipyard) continue;
+                var yard = new Shipyard(s.Id, m.YardRandom.Range(y.PriceRollMinPercent, y.PriceRollMaxPercent));
+                foreach (var c in tuning.Ships) yard.Add(m.NewYardStock(YardItemKind.Ship, c.Id));
+                foreach (var d in tuning.Drives) yard.Add(m.NewYardStock(YardItemKind.Drive, d.Id));
+                m._yards.Add(yard);
+            }
+
             return m;
+        }
+
+        /// <summary>A yard's stock of one item: its limit roll, starting full at the limit.</summary>
+        private YardStock NewYardStock(YardItemKind kind, string itemId)
+        {
+            var stock = new YardStock(kind, itemId, 0, YardRandom.Range(0, 100));
+            stock.Count = StockLimit(stock);
+            return stock;
         }
 
         /// <summary>
@@ -132,7 +164,80 @@ namespace SpaceTrade.Sim.Markets
             foreach (var id in _supplies.Concat(_demands).Select(x => x.CommodityId).Distinct())
                 if (tuning.FindCommodity(id) == null)
                     throw new ArgumentException($"The market trades commodity \"{id}\", which the new tuning does not define.", nameof(tuning));
+            foreach (var yard in _yards)
+            {
+                foreach (var s in yard.Ships)
+                    if (tuning.FindShip(s.ItemId) == null)
+                        throw new ArgumentException($"The shipyard at {SystemName(yard.SystemId)} stocks ship class \"{s.ItemId}\", which the new tuning does not define.", nameof(tuning));
+                foreach (var s in yard.Drives)
+                    if (tuning.FindDrive(s.ItemId) == null)
+                        throw new ArgumentException($"The shipyard at {SystemName(yard.SystemId)} stocks drive \"{s.ItemId}\", which the new tuning does not define.", nameof(tuning));
+            }
             Tuning = tuning;
+        }
+
+        // ---- Shipyards ----
+
+        /// <summary>The shipyard at this system, or null if it has none.</summary>
+        public Shipyard FindShipyard(int systemId) => _yards.Find(y => y.SystemId == systemId);
+
+        /// <summary>The stock limit for this item, from its stored roll and the current tuning minimum and maximum.</summary>
+        public int StockLimit(YardStock stock)
+        {
+            var y = Tuning.Shipyards;
+            return stock.Kind == YardItemKind.Ship
+                ? YardMath.StockLimit(y.ShipStockPerClassMin, y.ShipStockPerClassMax, stock.LimitRollPercent)
+                : YardMath.StockLimit(y.DriveStockPerTierMin, y.DriveStockPerTierMax, stock.LimitRollPercent);
+        }
+
+        /// <summary>
+        /// True when the yard sells this item: its stock limit is at least 1, or units are left over from
+        /// before a lowered limit. Out of stock (none left now) still counts as stocking it.
+        /// </summary>
+        public bool Stocks(YardStock stock) => stock != null && (stock.Count > 0 || StockLimit(stock) >= 1);
+
+        /// <summary>The price of a ship class or drive at this yard: the current tuning base price x the yard's price roll.</summary>
+        public long Price(Shipyard yard, YardItemKind kind, string itemId)
+        {
+            if (yard == null) throw new ArgumentNullException(nameof(yard));
+            long basePrice = kind == YardItemKind.Ship
+                ? (Tuning.FindShip(itemId) ?? throw new ArgumentException($"\"{itemId}\" is not a ship class in the tuning.", nameof(itemId))).Price
+                : (Tuning.FindDrive(itemId) ?? throw new ArgumentException($"\"{itemId}\" is not a drive in the tuning.", nameof(itemId))).Price;
+            return YardMath.Price(basePrice, yard.PriceRollPercent);
+        }
+
+        /// <summary>What a ship of this class costs at this system's yard, or null if it has no yard or the yard does not sell the class.</summary>
+        public long? ShipPriceAt(int systemId, string classId) => PriceAt(systemId, YardItemKind.Ship, classId);
+
+        /// <summary>What this drive costs at this system's yard, or null if it has no yard or the yard does not stock the drive.</summary>
+        public long? DrivePriceAt(int systemId, string driveId) => PriceAt(systemId, YardItemKind.Drive, driveId);
+
+        private long? PriceAt(int systemId, YardItemKind kind, string itemId)
+        {
+            var yard = FindShipyard(systemId);
+            if (yard == null || !Stocks(yard.Find(kind, itemId))) return null;
+            return Price(yard, kind, itemId);
+        }
+
+        /// <summary>The first restock after <paramref name="afterTick"/>. Every yard restocks on the same schedule, counted from market creation.</summary>
+        public long NextRestockTick(long afterTick) => NextBoundary(Tuning.Shipyards.RestockIntervalDays, afterTick);
+
+        /// <summary>Takes one unit of an item the yard has in stock. The caller has checked it.</summary>
+        internal void TakeOne(YardStock stock)
+        {
+            if (stock.Count <= 0) throw new InvalidOperationException($"No {stock.ItemId} left to take.");
+            stock.Count--;
+        }
+
+        /// <summary>
+        /// Every restock adds restockAmount of each item the yard stocks, never above its current limit.
+        /// Stock already above a lowered limit is kept and simply stops growing.
+        /// </summary>
+        private void Restock(Shipyard yard)
+        {
+            int amount = Tuning.Shipyards.RestockAmount;
+            foreach (var s in yard.Ships.Concat(yard.Drives))
+                s.Count = Refill(s.Count, StockLimit(s), amount);
         }
 
         private void AddStock(List<CommodityStock> list, Dictionary<(int, string), CommodityStock> index, CommodityStock stock)
@@ -206,6 +311,7 @@ namespace SpaceTrade.Sim.Markets
                     yield return c.ReplenishIntervalDays;
             yield return Tuning.Passengers.ReplenishIntervalDays;
             yield return Tuning.Rates.RerollIntervalDays;
+            if (FindShipyard(systemId) != null) yield return Tuning.Shipyards.RestockIntervalDays;
         }
 
         private long NextBoundary(int intervalDays, long afterTick)
@@ -233,7 +339,8 @@ namespace SpaceTrade.Sim.Markets
 
         /// <summary>
         /// Everything due for one system at this tick, in a fixed order: supply and demand by
-        /// commodity (tuning order), then passenger pools, then the rate and fare re-roll.
+        /// commodity (tuning order), then passenger pools, then the rate and fare re-roll, then the
+        /// shipyard restock.
         /// </summary>
         internal void RunDue(int systemId, long tick)
         {
@@ -261,6 +368,9 @@ namespace SpaceTrade.Sim.Markets
                 foreach (var pool in PoolsFrom(systemId))
                     pool.FareRollPercent = Random.Range(p.FareRollMinPercent, p.FareRollMaxPercent);
             }
+
+            var yard = FindShipyard(systemId);
+            if (yard != null && IsBoundary(Tuning.Shipyards.RestockIntervalDays, tick)) Restock(yard);
         }
 
         // ---- Opening offers ----
@@ -402,6 +512,14 @@ namespace SpaceTrade.Sim.Markets
             foreach (var o in _offers) sb.Append("offer ").Append(o.OriginId).Append(' ').Append(o.CommodityId).Append(' ').Append(o.DestinationId).Append(" roll=").Append(o.RateRollPercent).Append('\n');
             foreach (var p in _pools) sb.Append("pool ").Append(p.OriginId).Append(' ').Append(p.DestinationId).Append(" waiting=").Append(p.Waiting).Append(" roll=").Append(p.FareRollPercent).Append('\n');
             foreach (var r in _provisionRolls) sb.Append("provisions ").Append(r.SystemId).Append(' ').Append(r.FuelRollPercent).Append(' ').Append(r.FoodRollPercent).Append(' ').Append(r.WaterRollPercent).Append('\n');
+            sb.Append("yards rng=").Append(YardRandom.S0).Append(',').Append(YardRandom.S1).Append(',').Append(YardRandom.S2).Append(',').Append(YardRandom.S3).Append('\n');
+            foreach (var yard in _yards)
+            {
+                sb.Append("yard ").Append(yard.SystemId).Append(" priceRoll=").Append(yard.PriceRollPercent).Append('\n');
+                foreach (var s in yard.Ships.Concat(yard.Drives))
+                    sb.Append("yardstock ").Append(yard.SystemId).Append(' ').Append(s.Kind == YardItemKind.Ship ? "ship " : "drive ").Append(s.ItemId)
+                      .Append(" count=").Append(s.Count).Append(" limitRoll=").Append(s.LimitRollPercent).Append('\n');
+            }
             return sb.ToString();
         }
     }

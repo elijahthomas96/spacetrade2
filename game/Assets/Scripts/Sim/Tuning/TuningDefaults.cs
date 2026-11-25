@@ -121,6 +121,7 @@ namespace SpaceTrade.Sim.Tuning
                     DriveStockPerTierMin = 1,
                     DriveStockPerTierMax = 3,
                     RestockIntervalDays = 180,
+                    RestockAmount = 1,
                     PriceRollMinPercent = 90,
                     PriceRollMaxPercent = 110,
                 },

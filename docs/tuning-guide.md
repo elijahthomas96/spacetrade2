@@ -17,7 +17,7 @@ Every economy number in the game lives in one file, `game/Assets/StreamingAssets
 - Misspelled or extra field names are errors too, so a typo never silently does nothing.
 - Ids (`"courier"`, `"ore"`, `"refinery"`) link sections together. If you rename an id, rename every place that uses it.
 
-Some fields are used by rules that arrive in later build sessions (shipyards in 8, automated routes in 9). Their meaning is fixed here; later sessions may add fields, and will update this guide when they do. Market rules are described in "How markets use these numbers" and ship and voyage rules in "How voyages use these numbers" below.
+Some fields are used by rules that arrive in later build sessions (automated routes in 9). Their meaning is fixed here; later sessions may add fields, and will update this guide when they do. Market rules are described in "How markets use these numbers" and ship and voyage rules in "How voyages use these numbers" below.
 
 ## start
 
@@ -152,14 +152,14 @@ A list. Each ship class has:
 | `tankTonnes` | tonnes | Most fuel the ship can carry. |
 | `berths` | passengers | Most passengers the ship can carry. |
 | `crew` | people | Crew aboard. They eat and drink like passengers. |
-| `price` | credits | Base price at a shipyard. |
+| `price` | credits | Base price at a shipyard, including the slowest drive it comes with. Each yard charges this times its price roll. |
 | `inSystemDailyIncome` | credits per game day | What the ship earns doing in-system transport. At least 1, so a broke player can always recover. Aim for about 10 to 15 percent of what the ship earns from voyages in the same time. |
 
 **In-system transport** pays `inSystemDailyIncome` after each full game day (10,000 ticks, 10 real seconds at 1x) since the toggle went on. A partial day pays nothing, and switching off then on starts the count again. It earns nothing while the game is paused.
 
 ## shipNames
 
-A list of text: the names new ships are given. The starter ship's name is picked from it by the save's seed (session 8 will name bought ships from it too). A ship keeps its name for good, so editing this list never renames a ship that already exists. The list must have at least one name, with no blank names and no repeats; otherwise the error names `shipNames` (for example `shipNames: "Tern" appears more than once`) and the defaults are used.
+A list of text: the names new ships are given. The starter ship's name is picked from it by the save's seed. A bought ship gets a name from the list that no ship in the fleet already has; once every name is taken, it gets a listed name plus the lowest free number from 2 up ("Tern 2"). A ship keeps its name for good, so editing this list never renames a ship that already exists. The list must have at least one name, with no blank names and no repeats; otherwise the error names `shipNames` (for example `shipNames: "Tern" appears more than once`) and the defaults are used.
 
 ## drives
 
@@ -169,17 +169,28 @@ A list. Each drive tier has:
 |---|---|---|
 | `id`, `name` | text | Short id and display name. |
 | `speedMilliC` | milli-c | Speed in thousandths of light speed. 1500 = 1.5c. A trip takes (light-years divided by c-multiple) game years. |
-| `price` | credits | Base price at a shipyard. |
+| `price` | credits | Base price at a shipyard, for fitting it to a ship. Each yard charges this times its price roll. |
 | `fuelKgPerTonneLy` | kilograms | Fuel burned per tonne of loaded ship per light-year. |
 
 ## shipyards
 
 | Field | Unit | Meaning |
 |---|---|---|
-| `shipStockPerClassMin`, `shipStockPerClassMax` | ships | How many ships of each class a yard has in stock. |
-| `driveStockPerTierMin`, `driveStockPerTierMax` | drives | How many drives of each tier a yard has in stock. |
-| `restockIntervalDays` | game days | How often a yard restocks. |
-| `priceRollMinPercent`, `priceRollMaxPercent` | percent | Each yard's prices vary within this range of the base price. |
+| `shipStockPerClassMin`, `shipStockPerClassMax` | ships | The range for each yard's stock limit for each ship class. A limit of 0 means that yard does not sell that class. |
+| `driveStockPerTierMin`, `driveStockPerTierMax` | drives | The same for each drive. |
+| `restockIntervalDays` | game days | How often every yard restocks, counted from the start of the game. |
+| `restockAmount` | ships or drives | How many of each item a yard stocks are added at each restock, never above that item's limit. At least 1. |
+| `priceRollMinPercent`, `priceRollMaxPercent` | percent | Each yard's one price roll falls in this range. Every ship and drive there costs its base price times that roll. |
+
+### How shipyards use these numbers
+
+- **Stock limits move with your edits.** When a yard is created, it makes one roll for each ship class and drive, a whole percent from 0 to 100, and keeps only that roll. The limit is worked out each time as min + (max - min) x roll, rounded by the one rounding rule. A roll of 50 with min 1 and max 2 gives 1.5, which rounds to 2. Edit the min and max and every existing yard's limits follow. A yard starts with each item full at its limit.
+- **Which yards sell what.** A yard sells an item when its limit is at least 1, or when it still has some left over. With the default minimum of 1 every yard sells every class and every drive. Set a minimum to 0 to make some yards not carry some items.
+- **Restocking.** Every `restockIntervalDays`, each item a yard sells gains `restockAmount`, up to its limit. If you lower a limit, stock already above it is kept; it just stops growing.
+- **Prices move with your edits.** Each yard keeps one price roll, made when it is created. The price shown and charged is the current `ships[].price` or `drives[].price` x that roll, rounded once. Edit a base price and every yard's price follows.
+- **A bought ship** comes with the slowest drive (lowest `speedMilliC`, the first listed on a tie), included in the ship's price, with empty supplies. It can be bought at any yard from anywhere on the map and is delivered docked there. A faster drive is a separate purchase, which can be made at once if that yard stocks it.
+- **Fitting a drive** needs the ship docked at a yard that stocks the drive. It costs the full price, with no refund or trade-in for the old drive. Any stocked drive other than the installed one can be fitted, including a slower one.
+- **The upgrade preview** shows, for a route you pick, each leg's time and the fuel needed for an empty ship with crew only, with the current and the new drive, in kilograms.
 
 ## automation
 
