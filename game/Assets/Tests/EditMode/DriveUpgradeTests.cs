@@ -43,7 +43,7 @@ namespace SpaceTrade.Sim.Tests
             var (removed, added) = Diff(before, sim.DescribeState());
             Assert.AreEqual(3, removed.Count, string.Join("\n", removed));
             Assert.AreEqual(3, added.Count, string.Join("\n", added));
-            Assert.AreEqual("tick=0 speed=X1 paused=False credits=3605000 nextShip=2", added.Single(l => l.StartsWith("tick=")));
+            Assert.AreEqual("tick=0 speed=X1 paused=False credits=3605000 suppliesBought=0 nextShip=2", added.Single(l => l.StartsWith("tick=")));
             Assert.AreEqual("yardstock 1 drive alcubierre_3_75 count=3 limitRoll=100", removed.Single(l => l.StartsWith("yardstock")));
             Assert.AreEqual("yardstock 1 drive alcubierre_3_75 count=2 limitRoll=100", added.Single(l => l.StartsWith("yardstock")));
             Assert.AreEqual("ship 1 \"Test Courier\" class=courier drive=alcubierre_1_50 docked=1 fuel=5000kg/10000cr food=800kg/6400cr water=0kg/0cr insystem=-",

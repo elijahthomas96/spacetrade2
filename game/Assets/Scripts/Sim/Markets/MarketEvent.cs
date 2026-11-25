@@ -22,6 +22,7 @@ namespace SpaceTrade.Sim.Markets
         {
             sim.Market.RunDue(_systemId, sim.CurrentTick);
             sim.Schedule(sim.Market.NextEventTick(_systemId, sim.CurrentTick), new MarketEvent(_systemId));
+            sim.OnMarketEvent(_systemId);
         }
     }
 }

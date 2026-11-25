@@ -1,4 +1,5 @@
 using System;
+using SpaceTrade.Sim.Routes;
 using SpaceTrade.Sim.Voyages;
 
 namespace SpaceTrade.Sim.Ships
@@ -25,6 +26,9 @@ namespace SpaceTrade.Sim.Ships
         public long? InSystemSinceTick { get; internal set; }
 
         public bool IsOnInSystemTransport => InSystemSinceTick.HasValue;
+
+        /// <summary>The ship's route orders and status, or null when it has none (spec 8).</summary>
+        public ShipRoute Route { get; internal set; }
 
         public SupplyStock Fuel { get; } = new SupplyStock(SupplyKind.Fuel);
         public SupplyStock Food { get; } = new SupplyStock(SupplyKind.Food);
@@ -55,6 +59,7 @@ namespace SpaceTrade.Sim.Ships
             $"ship {Id} \"{Name}\" class={ClassId} drive={DriveId} docked={(DockedSystemId.HasValue ? DockedSystemId.Value.ToString() : "-")} " +
             $"fuel={Fuel.Kg}kg/{Fuel.CostCredits}cr food={Food.Kg}kg/{Food.CostCredits}cr water={Water.Kg}kg/{Water.CostCredits}cr" +
             $" insystem={(InSystemSinceTick.HasValue ? InSystemSinceTick.Value.ToString() : "-")}" +
-            (Voyage == null ? "" : " " + Voyage.DescribeState());
+            (Voyage == null ? "" : " " + Voyage.DescribeState()) +
+            (Route == null ? "" : "\n" + Route.DescribeOrders(Id) + "\n" + Route.DescribeStatus(Id));
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using SpaceTrade.Sim.Events;
 using SpaceTrade.Sim.Markets;
@@ -29,6 +30,9 @@ namespace SpaceTrade.Sim
         public Market Market { get; private set; }
 
         public long Credits { get; private set; }
+
+        /// <summary>Every credit ever spent buying supplies, through Provision or a dispatch top-up (spec 6.7).</summary>
+        public long SuppliesBoughtTotal { get; private set; }
 
         /// <summary>The player's fleet, in ship-id order. Ids start at 1.</summary>
         public IReadOnlyList<Ship> Ships => _ships;
@@ -107,6 +111,7 @@ namespace SpaceTrade.Sim
             foreach (var s in quote.Supplies)
                 if (s.ShortfallKg > 0) ship.Supply(s.Kind).Add(s.ShortfallKg, s.TopUpCost);
             Credits -= quote.TopUpCost;
+            SuppliesBoughtTotal = checked(SuppliesBoughtTotal + quote.TopUpCost);
         }
 
         /// <summary>
@@ -119,19 +124,22 @@ namespace SpaceTrade.Sim
         {
             if (plan == null) throw new ArgumentNullException(nameof(plan));
             var ship = FindShip(plan.ShipId);
+            if (ship?.Route != null && ship.Route.IsActive)
+                return CommandResult.Fail($"{ship.Name} is on an automated route. Pause or clear its route to dispatch it by hand.");
+            return DispatchCore(plan, buyTopUp);
+        }
+
+        /// <summary>The dispatch transaction shared by manual orders and automated route departures.</summary>
+        private CommandResult DispatchCore(VoyagePlan plan, bool buyTopUp)
+        {
+            var ship = FindShip(plan.ShipId);
             if (ship != null && ship.IsOnInSystemTransport)
                 return CommandResult.Fail($"{ship.Name} is on in-system transport at {Market.Galaxy.Systems[ship.DockedSystemId.Value].Name}. Turn off in-system transport to dispatch it.");
             var quote = Quote(plan);
             if (!quote.IsFeasible) return CommandResult.Fail(string.Join(" ", quote.Problems));
 
-            if (!buyTopUp)
-            {
-                var shortages = new List<string>();
-                foreach (var s in quote.Supplies)
-                    if (s.ShortfallKg > 0) shortages.Add($"{Format.Tonnes(s.ShortfallKg)} of {s.Kind.ToString().ToLowerInvariant()}");
-                if (shortages.Count > 0)
-                    return CommandResult.Fail($"{ship.Name} is short of {string.Join(", ", shortages)} for this voyage (top-up {Format.Credits(quote.TopUpCost)} credits). Press Provision first, or dispatch with the top-up.");
-            }
+            if (!buyTopUp && quote.Supplies.Any(s => s.ShortfallKg > 0))
+                return CommandResult.Fail(ShortageReason(ship, quote));
 
             var reserved = Market.TryReserve(new ReservationRequest(quote.OriginId, quote.DestinationId, plan.Freight, plan.Passengers), out var reservation);
             if (!reserved.Succeeded) return reserved;
@@ -156,6 +164,13 @@ namespace SpaceTrade.Sim
             return CommandResult.Ok();
         }
 
+        /// <summary>Why a dispatch without the top-up is refused: the shortfall of each supply and its cost.</summary>
+        private static string ShortageReason(Ship ship, VoyageQuote quote)
+        {
+            var shortages = quote.Supplies.Where(s => s.ShortfallKg > 0).Select(s => $"{Format.Tonnes(s.ShortfallKg)} of {s.Kind.ToString().ToLowerInvariant()}");
+            return $"{ship.Name} is short of {string.Join(", ", shortages)} for this voyage (top-up {Format.Credits(quote.TopUpCost)} credits). Press Provision first, or dispatch with the top-up.";
+        }
+
         /// <summary>
         /// Switches in-system transport on or off for a ship (spec 10). On is refused for a ship in transit.
         /// While on, the ship earns its class's daily income after each full game day since it was switched
@@ -170,6 +185,8 @@ namespace SpaceTrade.Sim
 
             if (on)
             {
+                if (ship.Route != null && ship.Route.IsActive)
+                    return CommandResult.Fail($"{ship.Name} is on an automated route. Pause or clear its route to use in-system transport.");
                 if (ship.IsInTransit)
                     return CommandResult.Fail($"{ship.Name} is in transit to {Market.Galaxy.Systems[ship.Voyage.DestinationId].Name}, arriving {GameDate.FromTick(ship.Voyage.ArrivalTick)}. In-system transport can only be switched on for a docked ship.");
                 long firstPay = checked(CurrentTick + GameTime.TicksPerDay);
@@ -194,6 +211,7 @@ namespace SpaceTrade.Sim
             var shipClass = Market.Tuning.FindShip(ship.ClassId) ?? throw new InvalidOperationException($"Ship {shipId}'s class \"{ship.ClassId}\" is not in the tuning.");
             Credits = checked(Credits + shipClass.InSystemDailyIncome);
             Schedule(checked(CurrentTick + GameTime.TicksPerDay), new InSystemIncomeEvent(shipId));
+            OnCreditsRose();
         }
 
         /// <summary>
@@ -216,7 +234,12 @@ namespace SpaceTrade.Sim
             Credits = checked(Credits + voyage.Payout);
             ship.Voyage = null;
             ship.DockedSystemId = voyage.DestinationId;
-            _receipts.Add(new VoyageReceipt(ship, voyage, consumed));
+            var receipt = new VoyageReceipt(ship, voyage, consumed);
+            _receipts.Add(receipt);
+            _notifications.Add(new Notification(CurrentTick, NotificationKind.Arrival, ship.Id,
+                $"{ship.Name} arrived at {Market.Galaxy.Systems[voyage.DestinationId].Name}. Net profit {Format.Credits(receipt.NetProfit)} credits."));
+            if (voyage.Payout > 0) OnCreditsRose();
+            OnRouteShipDocked(ship);
         }
 
         /// <summary>
@@ -236,9 +259,10 @@ namespace SpaceTrade.Sim
         {
             var sb = new StringBuilder();
             sb.Append("tick=").Append(Clock.Tick).Append(" speed=").Append(Clock.Speed).Append(" paused=").Append(Clock.IsPaused)
-              .Append(" credits=").Append(Credits).Append(" nextShip=").Append(_nextShipId).Append('\n');
+              .Append(" credits=").Append(Credits).Append(" suppliesBought=").Append(SuppliesBoughtTotal).Append(" nextShip=").Append(_nextShipId).Append('\n');
             foreach (var s in _ships) sb.Append(s.DescribeState()).Append('\n');
             foreach (var r in _receipts) sb.Append(r.DescribeState()).Append('\n');
+            foreach (var n in _notifications) sb.Append(n.DescribeState()).Append('\n');
             sb.Append(Events.DescribeState());
             if (Market != null) sb.Append(Market.DescribeState());
             return sb.ToString();

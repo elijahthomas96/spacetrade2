@@ -196,4 +196,4 @@ A list. Each drive tier has:
 
 | Field | Unit | Meaning |
 |---|---|---|
-| `recheckMinIntervalDays` | game days | A ship on an automated route that is waiting for a load is checked again at most once per this many days. 0 means check on every replenishment. |
+| `recheckMinIntervalDays` | game days | A ship on an automated route that is waiting for a load is checked again when stock at its stop or next stop replenishes, at most once per this many days; a replenishment that comes too soon is checked at the earliest allowed day instead, so it is never missed. A ship blocked only because it cannot pay for its supplies is checked again when credits rise, with the same limit. 0 means check every time. |

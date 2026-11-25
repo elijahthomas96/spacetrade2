@@ -2,6 +2,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
+using SpaceTrade.Sim.Routes;
 using SpaceTrade.Sim.Ships;
 using SpaceTrade.Sim.Voyages;
 using SpaceTrade.Sim.Yards;
@@ -41,7 +42,8 @@ namespace SpaceTrade.Sim.Tests
         {
             foreach (var type in new[] { typeof(Ship), typeof(SupplyStock), typeof(Voyage), typeof(LockedFreight), typeof(VoyageReceipt), typeof(ConsumedSupply),
                          typeof(NewGameResult), typeof(OpeningJob), typeof(OpeningOfferCheck),
-                         typeof(Shipyard), typeof(YardStock), typeof(DriveUpgradePreview), typeof(PreviewLeg) })
+                         typeof(Shipyard), typeof(YardStock), typeof(DriveUpgradePreview), typeof(PreviewLeg),
+                         typeof(ShipRoute), typeof(Notification), typeof(CircuitEstimate), typeof(CircuitLeg), typeof(CircuitFreight) })
             foreach (var c in type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
                 Assert.IsTrue(c.IsAssembly, $"{type.Name} constructor must be internal");
         }
@@ -51,7 +53,8 @@ namespace SpaceTrade.Sim.Tests
         {
             foreach (var type in new[] { typeof(Simulation), typeof(Ship), typeof(SupplyStock), typeof(Voyage), typeof(LockedFreight), typeof(VoyageReceipt), typeof(ConsumedSupply),
                          typeof(NewGameResult), typeof(OpeningJob), typeof(OpeningOfferCheck),
-                         typeof(Shipyard), typeof(YardStock), typeof(DriveUpgradePreview), typeof(PreviewLeg) })
+                         typeof(Shipyard), typeof(YardStock), typeof(DriveUpgradePreview), typeof(PreviewLeg),
+                         typeof(RouteStop), typeof(ShipRoute), typeof(Notification), typeof(CircuitEstimate), typeof(CircuitLeg), typeof(CircuitFreight) })
             foreach (var p in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
                 Assert.IsNull(p.GetSetMethod(false), $"{type.Name}.{p.Name} has a public setter");
         }
@@ -68,7 +71,8 @@ namespace SpaceTrade.Sim.Tests
                 .Select(m => m.Name)
                 .OrderBy(n => n)
                 .ToArray();
-            var expected = new[] { "Advance", "AttachMarket", "BuyDrive", "BuyShip", "DescribeState", "Dispatch", "FindShip", "Pause", "Play", "PreviewDriveUpgrade", "Provision", "Quote", "RemainingSupplyKg", "Schedule", "SetInSystemTransport", "SetSpeed" };
+            var expected = new[] { "Advance", "AttachMarket", "BuyDrive", "BuyShip", "ClearRoute", "DescribeState", "Dispatch", "EstimateCircuit", "FindShip", "Pause", "PauseRoute", "Play",
+                "PreviewDriveUpgrade", "Provision", "Quote", "RemainingSupplyKg", "ResumeRoute", "Schedule", "SetInSystemTransport", "SetRoute", "SetSpeed" };
             CollectionAssert.AreEqual(expected, publicMethods);
         }
     }

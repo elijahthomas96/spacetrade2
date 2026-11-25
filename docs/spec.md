@@ -216,6 +216,10 @@ Each supply aboard has a quantity and a total cost, so it has one average price.
 
 **Receipts are kept.** The simulation keeps every delivery receipt, in the order the ships arrived, and the save holds them all (section 11.1).
 
+**Supplies bought.** The simulation keeps a running total of every credit spent buying supplies, through Provision or a dispatch top-up, so every credit spent on supplies can be accounted for. It is one total rather than a figure on each voyage, so that dispatching with the top-up still ends in exactly the same state as pressing Provision and then dispatching (section 6.6).
+
+**Arrival notification.** Each arrival raises a notification naming the ship, the destination, and the voyage's net profit (section 3.4).
+
 A manually dispatched ship stays docked after arrival until ordered out again.
 
 ## 7. Shipyards and growth
@@ -265,6 +269,46 @@ A manually dispatched ship stays docked after arrival until ordered out again.
 - Automated departures use exactly the same dispatch rules and code as manual ones.
 - A ship waiting for its minimum load is rechecked whenever supply or bookings replenish. It shows the unmet condition, for example "Waiting for 12 more tonnes of ore".
 - If the next leg is infeasible (cannot afford provisions, load can never fit, destination removed from route), the ship stays docked, is flagged as blocked with the reason, raises a notification, and the player can change its orders.
+
+### 8.2 Route orders
+
+- **Valid orders.** At least two stops. Two consecutive stops (the last and the first included) must be different systems; a system may appear more than once otherwise. Each eligible commodity must be produced at its stop and bought at the next stop, and none may be listed twice. A freight minimum needs at least one eligible commodity; a passenger minimum needs passengers switched on. Minimums cannot be negative. Invalid orders are refused, listing every problem, and change nothing.
+- **Empty legs are explicit.** A stop marked as an empty repositioning leg cannot list freight, carry passengers, or have a minimum. A stop that lists no freight and does not carry passengers must be marked empty; otherwise the orders are refused.
+- **Where the ship starts.** The ship starts at the first stop (in list order) whose system is where it is docked, or where it is heading if it is in flight. Orders can be set on a ship in flight; they never change the voyage in progress.
+- **Ships on in-system transport.** Setting or resuming a route on a ship with in-system transport on is refused, changing nothing, with a reason telling the player to turn in-system transport off first. A ship on an active route cannot be switched onto in-system transport (section 10).
+- **Manual dispatch.** A ship on an active route cannot be dispatched by hand; the order is refused, changing nothing, with a reason telling the player to pause or clear the route first. It can be dispatched by hand while its route is paused. Quote, Provision, and drive fitting stay allowed on a route ship.
+- **Drives.** A drive can be fitted to any docked ship, on a route or not (section 7.3). The next departure is quoted with the new drive.
+
+### 8.3 Loading
+
+- **How much a stop loads.** As much as the quote allows. If the stop carries passengers they board first, up to the berths and the bookings waiting, but never so many that the stop's freight minimum could no longer fit in the hold and tank. Then freight for the next stop loads in the order the player listed the commodities, each as many tonnes as fit (hold and tank) and are available (supply and demand). There are no set amounts.
+- Credits never shrink the load. If the top-up for that load cannot be paid, the ship is blocked.
+- **Minimums.** Each stop has two minimums: tonnes of freight (all eligible commodities together) and number of passengers. Both must be met to leave. Zero means no minimum.
+- **Waiting text.** A ship that cannot meet its minimums waits, and its status lists every unmet minimum with its number: "Waiting for 12 more tonnes of ore", "Waiting for 12 more tonnes of freight (ore or metals)" when several commodities are eligible, "Waiting for 12 more tonnes of ore and 3 more passengers", with "1 more tonne" and "1 more passenger" in the singular.
+
+### 8.4 Departure checks
+
+- **When a ship checks.** A route ship's departure check runs in phase 4 (section 8.1). A ship can leave in the same tick it arrives: the arrival is in phase 1, the departure check in phase 4. Setting or resuming a route on a docked ship checks at once (commands run between ticks).
+- **The check.** It builds the voyage plan by the loading rules and calls the same dispatch as a manual voyage, with the stop's automatic provisioning setting as the top-up yes/no. A check that does not depart changes nothing except the ship's waiting or blocked status and, when it becomes blocked, its notification.
+- **Waiting rechecks.** A waiting ship is rechecked in phase 4 whenever a market event (replenishment or re-roll) runs at its stop or at its next stop, but no more often than once per `automation.recheckMinIntervalDays`. A replenishment that comes too soon schedules the recheck for the earliest allowed tick, so no replenishment is missed.
+- **Blocked.** A ship is blocked when: the next leg cannot fit even with no freight or passengers; a minimum can never be met (more passengers than berths or than the pool can ever hold, more freight than supply and demand can ever hold, or the two minimums together do not fit the hold and tank); the top-up cannot be paid; automatic provisioning is off and supplies are short (the dispatch's own reason); or the ship is docked at a system that is not its route's current stop (for example, the stop it was heading to was removed from the route). The route orders are accepted in that last case; the ship is flagged blocked once docked.
+- **Blocked for the top-up only.** A ship blocked only because the top-up cannot be paid is rechecked when credits rise (an arrival's payout or in-system pay), in the phase-4 departure check, by ship id, and no more often than once per `automation.recheckMinIntervalDays`. It stays flagged blocked until it leaves. Every other kind of block waits for the player.
+- **Notifications.** A ship raises one notification each time it becomes blocked, with the reason, not one per failed retry. Waiting shows only as the ship's status.
+- **Retry.** Resuming the route of a blocked ship retries the check at once, whether or not the route was paused, with no change to its orders. After a manual Provision on a ship blocked for short supplies, this retry is how it leaves.
+
+### 8.5 Pause, resume, and clear
+
+- **Pause** keeps the route orders and the ship's place in the loop (the stop it is at or heading to) but makes no automatic departures, and clears any waiting or blocked status. A ship in flight finishes its voyage unchanged and stays docked on arrival. While paused, the ship can be dispatched by hand or put on in-system transport.
+- **Resume** continues from the ship's remembered stop if the ship is docked at that stop's system. Otherwise it continues from the next stop after the remembered one, going round the loop, whose system is where the ship is docked. When the docked system appears more than once in the loop, this is how the right one is picked. Resuming a docked ship checks at once; a ship in flight continues when it docks.
+- **Clear** deletes the route orders. The ship becomes an ordinary manually flown ship: a ship in flight finishes its voyage unchanged and stays docked.
+- Changing, pausing, or clearing a route never alters a voyage already in flight.
+
+### 8.6 The whole-circuit estimate
+
+- The estimate uses today's published rates and fares and today's supply, demand, and bookings, loads each stop by its own loading rules, prices supplies as if bought at each stop at today's prices with nothing aboard at the start, and counts no waiting time.
+- **Exact (not labelled):** each leg's distance and transit time, the circuit's total transit time, and the kilograms of fuel, food, and water an empty leg needs.
+- **Labelled as an estimate:** every load, revenue, cost, profit, and profit per game year figure, and the supply kilograms of a loaded leg.
+- A note names any stop where today's stock is below its minimum (the ship would wait there) and any leg that cannot be flown.
 
 ### 8.1 Deterministic ordering
 
@@ -322,7 +366,7 @@ This is how a broke player recovers. It replaces the brief's emergency contract.
 - The daily rate is per ship class, in the tuning file, and must be at least 1 credit for every class (a lower value is a tuning error naming the field), so recovery is always possible. It is set low: default target is that a full game year of in-system transport earns about 10 to 15 percent of what the same ship earns from typical voyages in that time.
 - It uses no provisions and needs no cargo.
 - It runs through the normal event queue, so it earns nothing while paused and earns correctly during offline catch-up.
-- A ship on an automated route can only be toggled after the route is paused or cleared.
+- A ship on an automated route can only be toggled after the route is paused or cleared. The request is refused with that reason and changes nothing (section 8.2).
 - There is no other rescue mechanic. Because this income is always available to a docked ship, the player can always earn enough to provision the cheapest feasible job.
 
 ## 11. Saves and offline time
