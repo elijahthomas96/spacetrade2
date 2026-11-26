@@ -19,6 +19,10 @@ Things for you to do while the agent builds. None of the art or sound work block
 - [ ] After session 14: play one voyage yourself in the Editor. Note anything confusing in the planner and give it to the agent at the start of session 15.
 - [ ] After session 18: read `docs\balance-report.md` and decide whether the pace of growth feels right.
 
+## 2a. Star system names
+
+- [ ] Write at least 50 star system names for `galaxy.names` in `game\Assets\StreamingAssets\tuning.json` (there are 24 today). No repeats, no blank names. The default galaxy moves to 25 systems once these exist (spec section 4), and galaxies up to 50 systems need a name for every system. Give the list to the agent, or add it yourself and tell the agent at the start of the next session.
+
 ## 3. Images to create
 
 The full list, with a checkbox per image, is in `docs\graphics-checklist.md`. 61 images: 54 vector, 7 raster.

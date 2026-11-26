@@ -1,0 +1,137 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84083fede722e674cb4438da83ebd9ca, type: 3}
+  m_Name: ArtCatalog
+  m_EditorClassIdentifier: SpaceTrade.Game::SpaceTrade.Game.Art.ArtCatalog
+  entries:
+  - key: Branding/app_icon
+    sprite: {fileID: 21300000, guid: 22b22b5716d50464da961079f3ae757c, type: 3}
+  - key: Branding/logo
+    sprite: {fileID: 21300000, guid: dd4ea3c7b5059a545ae1bd1e0725f274, type: 3}
+  - key: Branding/title_backdrop
+    sprite: {fileID: 21300000, guid: 75be0c1fe3c11f7498f0951d1a73e0cb, type: 3}
+  - key: Icons/cargo_chemicals
+    sprite: {fileID: 21300000, guid: b7bbec2ed0ecd974599112ded7489266, type: 3}
+  - key: Icons/cargo_consumer_goods
+    sprite: {fileID: 21300000, guid: e561d753924b84c46aa21f3b55cb8305, type: 3}
+  - key: Icons/cargo_food
+    sprite: {fileID: 21300000, guid: 9bb99fd9fedd9b649b57e246cd513d41, type: 3}
+  - key: Icons/cargo_machinery
+    sprite: {fileID: 21300000, guid: 1dfa1a0950c332645a0c5981aee63d4f, type: 3}
+  - key: Icons/cargo_metals
+    sprite: {fileID: 21300000, guid: 3397e59658a7b3f438690b21aa350f90, type: 3}
+  - key: Icons/cargo_ore
+    sprite: {fileID: 21300000, guid: 2c929e348577bc14c92cb4319e4822be, type: 3}
+  - key: Icons/credits
+    sprite: {fileID: 21300000, guid: d150e80903921194180c912f8db753f9, type: 3}
+  - key: Icons/crew
+    sprite: {fileID: 21300000, guid: 9e88d888e509e5844a08bf4160481f62, type: 3}
+  - key: Icons/drive_tier1
+    sprite: {fileID: 21300000, guid: 1fbae52754402b34d84e4cd813d7218c, type: 3}
+  - key: Icons/drive_tier2
+    sprite: {fileID: 21300000, guid: fedd0bde10ff2a244b8fb6a83e812618, type: 3}
+  - key: Icons/drive_tier3
+    sprite: {fileID: 21300000, guid: bcdc5b647c27b7a4f9a4ef94393bf7ae, type: 3}
+  - key: Icons/industry_agriculture
+    sprite: {fileID: 21300000, guid: 4acd8e720b307374c9db1308b6985cb5, type: 3}
+  - key: Icons/industry_factory
+    sprite: {fileID: 21300000, guid: b551dd2544c3fb2478e33430d5400cb8, type: 3}
+  - key: Icons/industry_mining
+    sprite: {fileID: 21300000, guid: 36f7b6bcd568a624295005abacc8ce18, type: 3}
+  - key: Icons/industry_population
+    sprite: {fileID: 21300000, guid: 6183009b6f0c9f3489996ac5e5269843, type: 3}
+  - key: Icons/industry_refinery
+    sprite: {fileID: 21300000, guid: 5a40dc0778ba93c41b48de75423fe31d, type: 3}
+  - key: Icons/industry_shipyard
+    sprite: {fileID: 21300000, guid: 937e040acff595448a3542aac0d161d4, type: 3}
+  - key: Icons/passenger
+    sprite: {fileID: 21300000, guid: 9219c42789185754ab8477200fc65acc, type: 3}
+  - key: Icons/status_blocked
+    sprite: {fileID: 21300000, guid: 8b1757822c58ee84a85b3d3d9ab2db7d, type: 3}
+  - key: Icons/status_idle
+    sprite: {fileID: 21300000, guid: 5ab348bb346f0b44aac918922c687bb5, type: 3}
+  - key: Icons/status_insystem
+    sprite: {fileID: 21300000, guid: 8a1fafe732160c541ad9a50b843f4205, type: 3}
+  - key: Icons/status_transit
+    sprite: {fileID: 21300000, guid: 4de17ef56ac4fbb488265978321fb9b4, type: 3}
+  - key: Icons/status_waiting
+    sprite: {fileID: 21300000, guid: 44ed1b38b1d9be24e8583aaf443678cd, type: 3}
+  - key: Icons/supply_food
+    sprite: {fileID: 21300000, guid: 7e95731364cd58a4e94f9f57e9bb5659, type: 3}
+  - key: Icons/supply_fuel
+    sprite: {fileID: 21300000, guid: 4495cf6ebdf72144abf3a0aa07df5065, type: 3}
+  - key: Icons/supply_water
+    sprite: {fileID: 21300000, guid: 88cbefd718bdf9b46ad9f9fd8d7eb438, type: 3}
+  - key: Map/closeup_backdrop
+    sprite: {fileID: 21300000, guid: 82abf8a8dc200d44692015a5ffd1081d, type: 3}
+  - key: Map/nebula_overlay
+    sprite: {fileID: 21300000, guid: 7169649b9e6aa134b9652d3842e9a3e4, type: 3}
+  - key: Map/route_arrow
+    sprite: {fileID: 21300000, guid: b8563546d8e6c3f4ca726dd1fe7916ba, type: 3}
+  - key: Map/selection_ring
+    sprite: {fileID: 21300000, guid: 521d82db872ecdc4891d9c9e5c83872d, type: 3}
+  - key: Map/shipyard_badge
+    sprite: {fileID: 21300000, guid: 402a94df63ff0a549aa4086b8840c461, type: 3}
+  - key: Map/star
+    sprite: {fileID: 21300000, guid: 9d836c0f2d06889449af4543ebdf60e0, type: 3}
+  - key: Map/star_glow
+    sprite: {fileID: 21300000, guid: b18e0b99d35bf014987cfe31307d2de8, type: 3}
+  - key: Map/starfield
+    sprite: {fileID: 21300000, guid: 81bcf814770c94b4d9dbbae7a5a4c9bf, type: 3}
+  - key: Ships/courier_closeup
+    sprite: {fileID: 21300000, guid: d8037711076cff94bb7730a24ca9ef08, type: 3}
+  - key: Ships/courier_map
+    sprite: {fileID: 21300000, guid: 6b7246189e516bd4ebad4b197e210013, type: 3}
+  - key: Ships/engine_trail
+    sprite: {fileID: 21300000, guid: ed74c1ee61b6a6e4cb079a9c0b6e2dc5, type: 3}
+  - key: Ships/freighter_closeup
+    sprite: {fileID: 21300000, guid: e89901528752a7b44832ee3826dc826a, type: 3}
+  - key: Ships/freighter_map
+    sprite: {fileID: 21300000, guid: 670fd0b70799f31428a6efab4130ab33, type: 3}
+  - key: Ships/liner_closeup
+    sprite: {fileID: 21300000, guid: 88bb5d15e8b944740a8b92155531562b, type: 3}
+  - key: Ships/liner_map
+    sprite: {fileID: 21300000, guid: 956a020ed57441e4c9d88719d8a02d31, type: 3}
+  - key: Ships/warp_glow
+    sprite: {fileID: 21300000, guid: 6840bb25ac1ff8b4ebd10c8f16bfafc2, type: 3}
+  - key: UI/buy
+    sprite: {fileID: 21300000, guid: bd156c104e986df4db3bd5693828a1a1, type: 3}
+  - key: UI/close
+    sprite: {fileID: 21300000, guid: b572a7296a3d36c4d960d42739c57cd3, type: 3}
+  - key: UI/debug_skip
+    sprite: {fileID: 21300000, guid: 79e8ae6c85e04384cb2ff6725856a985, type: 3}
+  - key: UI/dispatch
+    sprite: {fileID: 21300000, guid: 7be4b7ce8acb5484799ef3af87957742, type: 3}
+  - key: UI/empty_leg
+    sprite: {fileID: 21300000, guid: a3e63ae2749081b4c849bcdadcdb48e5, type: 3}
+  - key: UI/fleet
+    sprite: {fileID: 21300000, guid: 62fb829d2ac83bd458e2597f98391960, type: 3}
+  - key: UI/follow
+    sprite: {fileID: 21300000, guid: 1e0b13019a6707345861cb0f25134259, type: 3}
+  - key: UI/notification
+    sprite: {fileID: 21300000, guid: 21fd40a0f56ba394f87ef5f0aa865330, type: 3}
+  - key: UI/pause
+    sprite: {fileID: 21300000, guid: ab28c1fc4dead7e479517b886c365bb9, type: 3}
+  - key: UI/play
+    sprite: {fileID: 21300000, guid: 34451f74adf5017448bd5199fab57327, type: 3}
+  - key: UI/provision
+    sprite: {fileID: 21300000, guid: 8e95303f7df590946acca02f77ce1fcc, type: 3}
+  - key: UI/receipt
+    sprite: {fileID: 21300000, guid: 4fc1d2a09ae2e884f902d7c14c42d96e, type: 3}
+  - key: UI/route
+    sprite: {fileID: 21300000, guid: 707087ff99581bb4dba3ac8da2bbeed8, type: 3}
+  - key: UI/save
+    sprite: {fileID: 21300000, guid: 34af1fb8703d3f8458bd07bd9c48cf7c, type: 3}
+  - key: UI/settings
+    sprite: {fileID: 21300000, guid: 4ce052eeb4d6c554096d1995b1be1f28, type: 3}
+  - key: UI/warning
+    sprite: {fileID: 21300000, guid: e2dfb54f09085ee4da23fa59395ef9d6, type: 3}

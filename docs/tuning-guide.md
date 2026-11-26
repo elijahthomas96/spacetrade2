@@ -67,6 +67,8 @@ A list. Each industry type has:
 
 The industries together must allow a closed three-stop freight circuit: industry A makes something B uses, B makes something C uses, and C makes something A uses. The defaults allow two (mining colony, refinery, agricultural system; and mining colony, refinery, factory).
 
+**Icon.** An industry with id `x` shows the icon `game/Assets/Art/Icons/industry_x.png`. If there is no such file, the game draws a plain stand-in icon and carries on, so you can add an industry here before its icon exists. The four default industries keep the icon names they already have: `mining_colony` uses `industry_mining.png`, `agricultural_system` uses `industry_agriculture.png`, `population_hub` uses `industry_population.png`, and `shipyard_works` uses `industry_shipyard.png`. `refinery` and `factory` already match.
+
 ## commodities
 
 A list. Each freight commodity has:
@@ -80,6 +82,8 @@ A list. Each freight commodity has:
 | `demandCapTonnes` | tonnes | Most freight a consuming system will accept at once. |
 | `supplyReplenishTonnes`, `demandReplenishTonnes` | tonnes | How much supply and demand grow back each interval, up to their caps. |
 | `replenishIntervalDays` | game days | How often supply and demand grow back. |
+
+**Icon.** A commodity with id `x` shows the icon `game/Assets/Art/Icons/cargo_x.png` (for example `cargo_consumer_goods.png` for `consumer_goods`). If there is no such file, the game draws a plain stand-in icon and carries on.
 
 ## passengers
 

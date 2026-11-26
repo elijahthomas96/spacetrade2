@@ -104,6 +104,13 @@ Rules that apply to every session (also in `AGENTS.md`):
 - Art loading by fixed filename with a generated placeholder for every image in `eli-tasks.md` section 3.
 - **Done when:** Play mode shows the generated galaxy, pan, zoom, and select work, console is clean, and every placeholder file exists at its listed path.
 
+### Session 10c: market speed and a job distance limit (after session 11, before session 12)
+
+- A fresh chat, simulation and docs only. Assets/Art, Assets/Audio, and the interface are not touched. Show the plan and wait for the owner's OK before changing anything, because the distance limit changes a rule; list every gap as a question with options and a recommendation.
+- **Speed (option 1 from the 10b study):** index freight offers and passenger pools by origin system, so a market event no longer scans the whole galaxy. A pure speed change: every result stays byte-identical, proven by the existing tests.
+- **Job distance limit (option 2, a rule change):** a new tuning field, a maximum job distance, so a port offers freight and passenger jobs only to destinations within that distance. Spec section 5, the tuning guide, the live file, and the fixture change together. Session 18 sets the final value. Every galaxy guarantee must still hold within the limit: reachability, an export and an import for every system, the closed three-stop circuit, and the opening offers. A limit that makes any of these impossible is a tuning error naming the field.
+- **Done when:** the full EditMode and PlayMode suites pass with a clean console; the speed change is shown byte-identical by the existing tests; tests cover the distance limit (no job beyond it, every guarantee within it over 200 seeds, a field-named error when it is too small); and the 25 and 50 system measurements from session 10b are re-run and reported before and after in `docs/progress.md`.
+
 ### Session 12: ships on the map
 
 - Ships drawn at true positions along their legs, active routes drawn, ship selection, follow mode, and the zoom-in close-up with the vessel panel (spec 9.1).
@@ -118,6 +125,7 @@ Rules that apply to every session (also in `AGENTS.md`):
 ### Session 14: system view, planner, receipt
 
 - System view (spec 9.2), the voyage planner with the quote, one-click provisioning, failure messages, dispatch, and the arrival receipt (spec 6.5 to 6.7).
+- The job list can be sorted (for example nearest or most profitable first) and filtered (for example hide jobs the selected ship cannot fly). Presentation only (option 3 from the session 10b study).
 - **Done when:** the agent completes a full manual voyage in Play mode through the interface only (using debug skip to reach arrival), and the receipt matches the quote.
 
 ### Session 15: fleet, ship panel, shipyard
@@ -133,7 +141,8 @@ Rules that apply to every session (also in `AGENTS.md`):
 ### Session 17: menus, saves, return summary
 
 - Title screen, new game, load, save slots, load demo, settings, quit. Offline return summary panel. Debug skip button shown only under the rules in spec 13.
-- **Done when:** the agent saves mid-transit, stops Play, restarts, and sees a correct return summary; a paused save returns paused.
+- Saving, autosave, and offline catch-up are wired to the screen here (session 11 runs an unsaved game in memory). The screen must not freeze: open saves with `GameSession.BeginOpen`, run the catch-up in slices with a progress percentage on screen, and keep autosaves from stalling a frame. If an autosave takes longer than the limit below, writing the file moves off the drawing step.
+- **Done when:** the agent saves mid-transit, stops Play, restarts, and sees a correct return summary; a paused save returns paused; and at 12 and 50 systems no frame during a catch-up or an autosave takes longer than 50 ms, measured and reported.
 
 ## Phase C: balance, proof, delivery
 

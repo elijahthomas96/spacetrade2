@@ -15,6 +15,15 @@
 
 **Not needed:** speed buttons (1x, 3x, 5x) and panel frames are drawn by the interface code.
 
+**Adding industries, commodities, or ship classes later.** Icons for these are found by their id in `tuning.json`, so a new one needs no code change:
+
+- A new industry with id `x` loads `Icons\industry_x.png`.
+- A new commodity with id `x` loads `Icons\cargo_x.png`.
+- Ship icons follow the same pattern from session 12: a new ship class with id `x` loads `Ships\x_map.png` and `Ships\x_closeup.png`.
+- Any of these with no file yet gets an automatic stand-in (a plain white ring with a cross), with no error, until you add the file.
+- The defaults keep the names below. Four industries were named before their ids existed and are mapped in the game code: `mining_colony` to `industry_mining.png`, `agricultural_system` to `industry_agriculture.png`, `population_hub` to `industry_population.png`, `shipyard_works` to `industry_shipyard.png`. Session 12 does the same for the default ship classes `bulk_freighter` (`freighter_*`) and `passenger_liner` (`liner_*`).
+- Drop the file in, with the exact name, and Unity picks it up with the right import settings automatically.
+
 ## 1. Ships
 
 Folder: `game\Assets\Art\Ships\` (8 files)

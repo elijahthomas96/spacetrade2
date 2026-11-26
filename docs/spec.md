@@ -73,6 +73,7 @@ Required cases (these are tests):
 ## 4. Galaxy
 
 - 8 to 12 named star systems, generated from the save's seed. Positions are in light-years on a 2D map.
+- **Map size target (owner's decision, session 11).** A new game is to default to **25 systems**, and galaxies of **up to 50 systems** are supported and tested. 100 systems is not a target for now. The default stays at 8 to 12 until the owner has written at least 50 star system names (`galaxy.names`); the change itself is a tuning edit, checked by the balance work in session 18. The map (section 9.1) and its tests already cover 12 and 50 systems.
 - The generated galaxy (names, positions, industries, yards) is stored in the save. It is never regenerated from the seed after creation, so later tuning edits cannot reshape an existing save.
 - Nearest-neighbour distances fall in a tuning range (default 2.5 to 7 ly) so early voyages take one to a few game years with the starter drive.
 - Each system has 1 to 3 persistent industries, a population size, and optionally a shipyard.
@@ -354,6 +355,7 @@ Date, pause/play, speed buttons (1x, 3x, 5x), credits, notification list. Notifi
 
 - Every sprite and icon is loaded from a file with a fixed name under `game/Assets/Art/`. The agent creates a simple placeholder for each. Replacing the file with the same name swaps the art with no code change. The full list is in `eli-tasks.md`.
 - Icons are white on transparent so the code can tint them.
+- **Icons looked up by id.** An industry with tuning id `x` uses `Icons/industry_x.png` and a commodity with id `x` uses `Icons/cargo_x.png`, so adding one to the tuning file needs no code change. Any image with no file gets an automatic stand-in drawn by the game, with no error. The four default industries whose files were named before their ids existed are mapped by a fixed list in the presentation code (`mining_colony` to `industry_mining`, `agricultural_system` to `industry_agriculture`, `population_hub` to `industry_population`, `shipyard_works` to `industry_shipyard`). Ship classes follow the same pattern (`Ships/x_map.png`, `Ships/x_closeup.png`), with the defaults `bulk_freighter` and `passenger_liner` mapped to the existing `freighter_*` and `liner_*` files.
 - Every sound event in `eli-tasks.md` is wired to a named audio file under `game/Assets/Audio/`, each a silent placeholder. The settings menu has master, effects, and music volume sliders and a mute toggle.
 
 ## 10. In-system transport
