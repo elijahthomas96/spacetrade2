@@ -22,6 +22,7 @@ namespace SpaceTrade.Sim.Tuning
         public ShipyardTuning Shipyards = new ShipyardTuning();
         public AutomationTuning Automation = new AutomationTuning();
         public NotificationTuning Notifications = new NotificationTuning();
+        public ReceiptTuning Receipts = new ReceiptTuning();
 
         public IndustryTuning FindIndustry(string id) => Industries.Find(x => x.Id == id);
         public CommodityTuning FindCommodity(string id) => Commodities.Find(x => x.Id == id);
@@ -176,7 +177,13 @@ namespace SpaceTrade.Sim.Tuning
 
     public sealed class NotificationTuning
     {
-        /// <summary>How many notifications are kept, newest first; older ones are dropped. Receipts are never dropped.</summary>
+        /// <summary>How many notifications are kept, newest first; older ones are dropped.</summary>
+        public int KeepNewest;
+    }
+
+    public sealed class ReceiptTuning
+    {
+        /// <summary>How many delivery receipts are kept in full, newest first. Every delivery stays counted in the running totals.</summary>
         public int KeepNewest;
     }
 }

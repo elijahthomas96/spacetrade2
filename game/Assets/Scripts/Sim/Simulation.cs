@@ -19,6 +19,7 @@ namespace SpaceTrade.Sim
         private bool _advancing;
         private readonly List<Ship> _ships = new List<Ship>();
         private readonly List<VoyageReceipt> _receipts = new List<VoyageReceipt>();
+        private DeliveryTotals _deliveryTotals = new DeliveryTotals();
         private int _nextShipId = 1;
 
         public SimClock Clock { get; }
@@ -42,8 +43,14 @@ namespace SpaceTrade.Sim
 
         public Ship FindShip(int id) => _ships.Find(s => s.Id == id);
 
-        /// <summary>Every delivery receipt, in the order the ships arrived.</summary>
+        /// <summary>The newest delivery receipts (at most the tuning's receipts.keepNewest), in the order the ships arrived.</summary>
         public IReadOnlyList<VoyageReceipt> Receipts => _receipts;
+
+        /// <summary>Running totals of every delivery since the game began, including those whose receipts were dropped (spec 6.7).</summary>
+        public DeliveryTotals DeliveryTotals => _deliveryTotals;
+
+        /// <summary>The totals of the deliveries older than the receipts still kept.</summary>
+        public DeliveryTotals OlderDeliveryTotals => _deliveryTotals.Since(DeliveryTotals.Of(_receipts));
 
         /// <param name="debug">Debug permission (spec 13), or null. It can only be granted when the simulation is created.</param>
         public Simulation(long startTick = 0, ClockSpeed speed = ClockSpeed.X1, bool paused = false, DebugCapability debug = null)
@@ -242,10 +249,19 @@ namespace SpaceTrade.Sim
             ship.DockedSystemId = voyage.DestinationId;
             var receipt = new VoyageReceipt(ship, voyage, consumed);
             _receipts.Add(receipt);
+            _deliveryTotals.Add(receipt);
+            TrimReceipts();
             Notify(new Notification(CurrentTick, NotificationKind.Arrival, ship.Id,
                 $"{ship.Name} arrived at {Market.Galaxy.Systems[voyage.DestinationId].Name}. Net profit {Format.Credits(receipt.NetProfit)} credits."));
             if (voyage.Payout > 0) OnCreditsRose();
             OnRouteShipDocked(ship);
+        }
+
+        /// <summary>Drops the oldest receipts beyond the tuning's receipts.keepNewest. They stay counted in <see cref="DeliveryTotals"/>.</summary>
+        internal void TrimReceipts()
+        {
+            int keep = Market.Tuning.Receipts.KeepNewest;
+            if (_receipts.Count > keep) _receipts.RemoveRange(0, _receipts.Count - keep);
         }
 
         /// <summary>
@@ -268,6 +284,7 @@ namespace SpaceTrade.Sim
               .Append(" credits=").Append(Credits).Append(" suppliesBought=").Append(SuppliesBoughtTotal).Append(" inSystemIncome=").Append(InSystemIncomeTotal)
               .Append(" nextShip=").Append(_nextShipId).Append('\n');
             foreach (var s in _ships) sb.Append(s.DescribeState()).Append('\n');
+            sb.Append(_deliveryTotals.DescribeState()).Append('\n');
             foreach (var r in _receipts) sb.Append(r.DescribeState()).Append('\n');
             foreach (var n in _notifications) sb.Append(n.DescribeState()).Append('\n');
             sb.Append(Events.DescribeState());

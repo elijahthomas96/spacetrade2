@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using SpaceTrade.Sim.Routes;
@@ -23,7 +24,8 @@ namespace SpaceTrade.Sim.Saves
 
     /// <summary>
     /// What happened while the player was away (spec 11.3). Voyage payouts + in-system income - supplies bought always
-    /// equals <see cref="NetCreditChange"/>, the change in credits.
+    /// equals <see cref="NetCreditChange"/>, the change in credits. The figures come from running totals, so they cover
+    /// every delivery while away, even when more were made than receipts are kept.
     /// </summary>
     public sealed class ReturnSummary
     {
@@ -38,9 +40,19 @@ namespace SpaceTrade.Sim.Saves
         public long ToTick { get; }
         public long GameTicksPassed => ToTick - FromTick;
 
-        /// <summary>Every delivery made while away, in arrival order.</summary>
+        /// <summary>Totals of every delivery made while away: count, tonnes, passengers, revenue, and supplies used.</summary>
+        public DeliveryTotals Delivered { get; }
+
+        /// <summary>How many deliveries were made while away.</summary>
+        public long DeliveryCount => Delivered.Deliveries;
+
+        /// <summary>The deliveries made while away whose receipts are still kept in full (the newest ones), in arrival order.</summary>
         public IReadOnlyList<VoyageReceipt> Deliveries { get; }
-        public long VoyagePayouts { get; }
+
+        /// <summary>Deliveries made while away that are counted in the totals but not listed in <see cref="Deliveries"/>.</summary>
+        public long DeliveriesNotListed => DeliveryCount - Deliveries.Count;
+
+        public long VoyagePayouts => Delivered.GrossRevenue;
         public long InSystemIncome { get; }
         public long SuppliesBought { get; }
         public long NetCreditChange { get; }
@@ -50,7 +62,7 @@ namespace SpaceTrade.Sim.Saves
         public bool ShouldShow => RealMillisecondsAway >= OfflineCatchUp.SummaryMinRealMs;
 
         internal ReturnSummary(long fromUtcMs, long toUtcMs, long realMsAway, bool backward, bool paused, long fromTick, long toTick,
-            IReadOnlyList<VoyageReceipt> deliveries, long payouts, long inSystemIncome, long suppliesBought, long netCreditChange, IReadOnlyList<ShipAttention> attention)
+            DeliveryTotals delivered, IReadOnlyList<VoyageReceipt> deliveries, long inSystemIncome, long suppliesBought, long netCreditChange, IReadOnlyList<ShipAttention> attention)
         {
             FromUtcMs = fromUtcMs;
             ToUtcMs = toUtcMs;
@@ -59,12 +71,116 @@ namespace SpaceTrade.Sim.Saves
             WasPaused = paused;
             FromTick = fromTick;
             ToTick = toTick;
+            Delivered = delivered;
             Deliveries = deliveries;
-            VoyagePayouts = payouts;
             InSystemIncome = inSystemIncome;
             SuppliesBought = suppliesBought;
             NetCreditChange = netCreditChange;
             ShipsNeedingAttention = attention;
+        }
+    }
+
+    /// <summary>
+    /// One offline catch-up in progress (spec 11.3). It moves the game toward its target in slices, each through the normal
+    /// <see cref="Simulation.Advance"/>, so the screen can draw between slices and show <see cref="ProgressPerMille"/>.
+    /// However the time is sliced, the game ends in exactly the same state as one step to the target.
+    /// </summary>
+    public sealed class CatchUpRun
+    {
+        /// <summary>The game time one slice covers: 10 game days.</summary>
+        public const long SliceTicks = 10 * GameTime.TicksPerDay;
+
+        private readonly Simulation _sim;
+        private readonly DeliveryTotals _deliveredBefore;
+        private readonly long _creditsBefore, _incomeBefore, _boughtBefore;
+
+        public long FromUtcMs { get; }
+
+        /// <summary>The real time the catch-up runs to. <see cref="ExtendTo"/> moves it later.</summary>
+        public long ToUtcMs { get; private set; }
+
+        public bool ClockWentBackward { get; }
+        public bool WasPaused { get; }
+        public long FromTick { get; }
+
+        /// <summary>The game tick the catch-up ends at: real milliseconds from <see cref="FromUtcMs"/> to <see cref="ToUtcMs"/> x the speed.</summary>
+        public long TargetTick { get; private set; }
+
+        public long TicksDone => _sim.CurrentTick - FromTick;
+        public long TicksTotal => TargetTick - FromTick;
+        public bool IsDone => _sim.CurrentTick >= TargetTick;
+
+        /// <summary>How far the catch-up has got, in thousandths (0 to 1,000). It reaches 1,000 only when it is done.</summary>
+        public int ProgressPerMille => TicksTotal == 0 ? 1000 : (int)(TicksDone * 1000 / TicksTotal);
+
+        internal CatchUpRun(Simulation sim, long fromUtcMs, long nowUtcMs)
+        {
+            _sim = sim ?? throw new ArgumentNullException(nameof(sim));
+            FromUtcMs = fromUtcMs;
+            ToUtcMs = nowUtcMs;
+            ClockWentBackward = nowUtcMs < fromUtcMs;
+            WasPaused = sim.Clock.IsPaused;
+            FromTick = sim.CurrentTick;
+            TargetTick = TickFor(nowUtcMs);
+            _deliveredBefore = sim.DeliveryTotals.Copy();
+            _creditsBefore = sim.Credits;
+            _incomeBefore = sim.InSystemIncomeTotal;
+            _boughtBefore = sim.SuppliesBoughtTotal;
+        }
+
+        private long TickFor(long utcMs)
+        {
+            if (ClockWentBackward || WasPaused || utcMs <= FromUtcMs) return FromTick;
+            return checked(FromTick + (utcMs - FromUtcMs) * ClockSpeeds.Multiplier(_sim.Clock.Speed));
+        }
+
+        /// <summary>
+        /// Counts real time up to <paramref name="nowUtcMs"/> too, so time spent catching up is not lost. Never moves the
+        /// target earlier. Does nothing after the clock was found to have gone backward.
+        /// </summary>
+        public void ExtendTo(long nowUtcMs)
+        {
+            if (ClockWentBackward || nowUtcMs <= ToUtcMs) return;
+            ToUtcMs = nowUtcMs;
+            TargetTick = TickFor(nowUtcMs);
+        }
+
+        /// <summary>Advances at most <paramref name="maxTicks"/> toward the target, through the normal Advance.</summary>
+        public void Step(long maxTicks)
+        {
+            if (maxTicks < 1) throw new ArgumentOutOfRangeException(nameof(maxTicks), maxTicks, "A slice must be at least 1 tick.");
+            if (IsDone) return;
+            _sim.Advance(_sim.CurrentTick + Math.Min(maxTicks, TargetTick - _sim.CurrentTick));
+        }
+
+        /// <summary>
+        /// Runs slices of <see cref="SliceTicks"/> until it is done or <paramref name="budgetMicroseconds"/> of real time on
+        /// <paramref name="clock"/> have passed. Always runs at least one slice.
+        /// </summary>
+        public void StepFor(IRealTimeSource clock, long budgetMicroseconds)
+        {
+            if (clock == null) throw new ArgumentNullException(nameof(clock));
+            long start = clock.NowMicroseconds;
+            do Step(SliceTicks);
+            while (!IsDone && clock.NowMicroseconds - start < budgetMicroseconds);
+        }
+
+        /// <summary>Runs whatever is left in one step.</summary>
+        public void RunToEnd()
+        {
+            if (!IsDone) Step(TargetTick - _sim.CurrentTick);
+        }
+
+        /// <summary>The return summary. Only once the catch-up is done.</summary>
+        public ReturnSummary Finish()
+        {
+            if (!IsDone) throw new InvalidOperationException($"The catch-up is not done: tick {_sim.CurrentTick} of {TargetTick}.");
+            var delivered = _sim.DeliveryTotals.Since(_deliveredBefore);
+            int listed = (int)Math.Min(delivered.Deliveries, _sim.Receipts.Count);
+            var deliveries = _sim.Receipts.Skip(_sim.Receipts.Count - listed).ToList();
+            long away = ClockWentBackward ? 0 : ToUtcMs - FromUtcMs;
+            return new ReturnSummary(FromUtcMs, ToUtcMs, away, ClockWentBackward, WasPaused, FromTick, _sim.CurrentTick, delivered, deliveries,
+                _sim.InSystemIncomeTotal - _incomeBefore, _sim.SuppliesBoughtTotal - _boughtBefore, _sim.Credits - _creditsBefore, OfflineCatchUp.ShipsNeedingAttention(_sim));
         }
     }
 
@@ -82,23 +198,15 @@ namespace SpaceTrade.Sim.Saves
         /// <summary>Time away shorter than this many real milliseconds skips the summary panel (5 minutes).</summary>
         public const long SummaryMinRealMs = 300_000;
 
+        /// <summary>Starts a catch-up from <paramref name="fromUtcMs"/> to <paramref name="nowUtcMs"/> without advancing anything yet.</summary>
+        public static CatchUpRun Begin(Simulation sim, long fromUtcMs, long nowUtcMs) => new CatchUpRun(sim, fromUtcMs, nowUtcMs);
+
+        /// <summary>The whole catch-up in one step.</summary>
         public static ReturnSummary Run(Simulation sim, long fromUtcMs, long nowUtcMs)
         {
-            bool backward = nowUtcMs < fromUtcMs;
-            long away = backward ? 0 : nowUtcMs - fromUtcMs;
-            bool paused = sim.Clock.IsPaused;
-            long ticks = paused ? 0 : checked(away * ClockSpeeds.Multiplier(sim.Clock.Speed));
-
-            long fromTick = sim.CurrentTick;
-            int receiptsBefore = sim.Receipts.Count;
-            long creditsBefore = sim.Credits, incomeBefore = sim.InSystemIncomeTotal, boughtBefore = sim.SuppliesBoughtTotal;
-            if (ticks > 0) sim.Advance(checked(fromTick + ticks));
-
-            var deliveries = sim.Receipts.Skip(receiptsBefore).ToList();
-            long payouts = 0;
-            foreach (var r in deliveries) payouts = checked(payouts + r.GrossRevenue);
-            return new ReturnSummary(fromUtcMs, nowUtcMs, away, backward, paused, fromTick, sim.CurrentTick, deliveries, payouts,
-                sim.InSystemIncomeTotal - incomeBefore, sim.SuppliesBoughtTotal - boughtBefore, sim.Credits - creditsBefore, ShipsNeedingAttention(sim));
+            var run = Begin(sim, fromUtcMs, nowUtcMs);
+            run.RunToEnd();
+            return run.Finish();
         }
 
         /// <summary>Ships blocked on their route (with the reason), and docked ships with no active route and no in-system transport.</summary>

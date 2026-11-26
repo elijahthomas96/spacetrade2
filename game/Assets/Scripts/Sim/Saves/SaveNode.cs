@@ -31,6 +31,9 @@ namespace SpaceTrade.Sim.Saves
 
         public static SaveNode Root(JsonValue value) => new SaveNode(value, "save");
 
+        /// <summary>A node for a value found by other means, named by its path in the save for error messages.</summary>
+        public static SaveNode At(JsonValue value, string path) => new SaveNode(value, path);
+
         public string Path => _path;
 
         private string PathOf(string name) => _path + "." + name;

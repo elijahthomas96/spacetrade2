@@ -94,7 +94,13 @@ namespace SpaceTrade.Sim.Saves
                 if (stored != text.Substring(start, SaveFormat.ChecksumLength) || stored != SaveFormat.Checksum(text, start))
                     return SaveReadOutcome.Damaged("its checksum does not match its contents, so it was changed or damaged after it was written");
 
-                if (version < SaveFormat.CurrentVersion) top = SaveMigrations.Migrate(top, (int)version);
+                if (version < SaveFormat.CurrentVersion)
+                {
+                    top = SaveNode.Root(SaveMigrations.Migrate(root, (int)version));
+                    top.Text("format");
+                    top.Long("version");
+                    top.Text("checksum");
+                }
                 long savedUtcMs = top.Long("savedUtcMs", 0, MaxUtcMs);
                 var game = top.Child("game");
                 top.Done();
@@ -125,6 +131,7 @@ namespace SpaceTrade.Sim.Saves
             var galaxy = ReadGalaxy(g.Child("galaxy"));
             var market = ReadMarket(g.Child("market"), galaxy, tuning);
             var ships = g.List("ships").Select(s => ReadShip(s, galaxy.Systems.Count)).ToList();
+            var totals = ReadTotals(g.Child("deliveryTotals"));
             var receipts = g.List("receipts").Select(ReadReceipt).ToList();
             var notifications = g.List("notifications").Select(n =>
             {
@@ -160,7 +167,7 @@ namespace SpaceTrade.Sim.Saves
             }
 
             var sim = new Simulation(tick, speed, paused, debug);
-            sim.RestoreState(market, credits, suppliesBought, inSystemIncome, nextShipId, ships, receipts, notifications, events, nextSequence);
+            sim.RestoreState(market, credits, suppliesBought, inSystemIncome, nextShipId, ships, totals, receipts, notifications, events, nextSequence);
             return sim;
         }
 
@@ -316,7 +323,15 @@ namespace SpaceTrade.Sim.Saves
             };
         }
 
-        private static VoyageReceipt ReadReceipt(SaveNode r)
+        private static DeliveryTotals ReadTotals(SaveNode t)
+        {
+            var totals = new DeliveryTotals(t.Long("deliveries", 0), t.Long("freightTonnes", 0), t.Long("passengers", 0), t.Long("freightRevenue", 0), t.Long("fareRevenue", 0),
+                t.Long("fuelKg", 0), t.Long("fuelCost", 0), t.Long("foodKg", 0), t.Long("foodCost", 0), t.Long("waterKg", 0), t.Long("waterCost", 0));
+            t.Done();
+            return totals;
+        }
+
+        internal static VoyageReceipt ReadReceipt(SaveNode r)
         {
             var receipt = new VoyageReceipt(r.Int("ship", 1), r.Text("shipName"), r.Int("origin", 0), r.Int("destination", 0), r.Long("departureTick", 0), r.Long("arrivalTick", 0),
                 ReadFreight(r), r.Int("passengers", 0), r.Long("farePerPassenger", 0), r.Long("freightRevenue", 0), r.Long("fareRevenue", 0),
@@ -332,14 +347,17 @@ namespace SpaceTrade.Sim.Saves
     }
 
     /// <summary>
-    /// Converts an older save format to the current one, one version at a time, before it is read (spec 11.2). Format 1 is
-    /// the first, so there are no steps yet; a later format adds a step here for the version before it.
+    /// Converts an older save format to the current one, one version at a time, before it is read (spec 11.2). Each step
+    /// takes the whole save for version v and returns it as version v + 1.
     /// </summary>
     internal static class SaveMigrations
     {
-        private static readonly Dictionary<int, Func<SaveNode, SaveNode>> Steps = new Dictionary<int, Func<SaveNode, SaveNode>>();
+        private static readonly Dictionary<int, Func<JsonValue, JsonValue>> Steps = new Dictionary<int, Func<JsonValue, JsonValue>>
+        {
+            [1] = AddDeliveryTotals,
+        };
 
-        public static SaveNode Migrate(SaveNode save, int fromVersion)
+        public static JsonValue Migrate(JsonValue save, int fromVersion)
         {
             for (int v = fromVersion; v < SaveFormat.CurrentVersion; v++)
             {
@@ -347,6 +365,34 @@ namespace SpaceTrade.Sim.Saves
                 save = step(save);
             }
             return save;
+        }
+
+        /// <summary>
+        /// Format 1 to 2: format 1 kept every receipt, so the delivery totals are exactly the totals of the receipts in the file.
+        /// Receipts beyond receipts.keepNewest are dropped later, when the game is restored.
+        /// </summary>
+        private static JsonValue AddDeliveryTotals(JsonValue save)
+        {
+            var game = save.Get("game") ?? throw new SaveDataException("save.game is missing.");
+            if (game.Kind != JsonKind.Object) throw new SaveDataException($"save.game must be a group of fields, got {game.Describe()}.");
+            if (game.Get("deliveryTotals") != null) throw new SaveDataException("save.game.deliveryTotals is not a field save format 1 has.");
+            var receipts = SaveNode.At(game, "save.game").List("receipts").Select(SaveReader.ReadReceipt);
+            var totals = JsonParser.Parse(SaveWriter.Totals(DeliveryTotals.Of(receipts)).ToString());
+
+            var gameMembers = new List<KeyValuePair<string, JsonValue>>();
+            foreach (var m in game.Members)
+            {
+                if (m.Key == "receipts") gameMembers.Add(new KeyValuePair<string, JsonValue>("deliveryTotals", totals));
+                gameMembers.Add(m);
+            }
+            var members = new List<KeyValuePair<string, JsonValue>>();
+            foreach (var m in save.Members)
+            {
+                if (m.Key == "version") members.Add(new KeyValuePair<string, JsonValue>("version", JsonValue.Number(m.Value.Line, "2")));
+                else if (m.Key == "game") members.Add(new KeyValuePair<string, JsonValue>("game", JsonValue.Object(m.Value.Line, gameMembers)));
+                else members.Add(m);
+            }
+            return JsonValue.Object(save.Line, members);
         }
     }
 }

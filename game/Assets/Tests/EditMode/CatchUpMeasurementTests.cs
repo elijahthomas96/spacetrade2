@@ -54,6 +54,7 @@ namespace SpaceTrade.Sim.Tests
                 double loadSeconds = clock.Elapsed.TotalSeconds;
                 Assert.IsTrue(load.Succeeded, string.Join(" ", load.Messages));
 
+                var totalsBefore = load.Simulation.DeliveryTotals.Copy();
                 clock.Restart();
                 var summary = OfflineCatchUp.Run(load.Simulation, load.SavedUtcMs, now);
                 double catchUpSeconds = clock.Elapsed.TotalSeconds;
@@ -67,13 +68,17 @@ namespace SpaceTrade.Sim.Tests
                 Assert.AreEqual(5L * realDays * RealDay, summary.GameTicksPassed);
                 Assert.AreEqual(after.Credits - credits, summary.NetCreditChange);
                 Assert.AreEqual(summary.NetCreditChange, summary.VoyagePayouts + summary.InSystemIncome - summary.SuppliesBought);
-                Assert.Greater(summary.Deliveries.Count, 0);
+                Assert.Greater(summary.DeliveryCount, tuning.Receipts.KeepNewest, "More deliveries while away than receipts kept.");
+                Assert.AreEqual(tuning.Receipts.KeepNewest, after.Receipts.Count);
+                Assert.AreEqual(tuning.Receipts.KeepNewest, summary.Deliveries.Count);
+                Assert.AreEqual(summary.DeliveryCount - tuning.Receipts.KeepNewest, summary.DeliveriesNotListed);
+                Assert.AreEqual(after.DeliveryTotals.Since(totalsBefore).DescribeState(), summary.Delivered.DescribeState());
 
                 string report =
                     $"[{realDays}-day catch-up] {realDays} real days at 5x = {summary.GameTicksPassed / (double)GameTime.TicksPerYear:0.00} game years, " +
                     $"{after.Ships.Count} ships (4 on routes, 1 on in-system transport). " +
                     $"Load {loadSeconds:0.000} s, catch-up {catchUpSeconds:0.000} s, save {saveSeconds:0.000} s, total {loadSeconds + catchUpSeconds + saveSeconds:0.000} s. " +
-                    $"Deliveries {summary.Deliveries.Count}, payouts {summary.VoyagePayouts:N0} cr, in-system {summary.InSystemIncome:N0} cr, " +
+                    $"Deliveries {summary.DeliveryCount} ({summary.Deliveries.Count} listed in full), payouts {summary.VoyagePayouts:N0} cr, in-system {summary.InSystemIncome:N0} cr, " +
                     $"supplies {summary.SuppliesBought:N0} cr, net {summary.NetCreditChange:N0} cr. " +
                     $"Save file {fileBytes / 1024.0:0.0} KB, notifications kept {after.Notifications.Count}, receipts {after.Receipts.Count}.";
                 UnityEngine.Debug.Log(report);

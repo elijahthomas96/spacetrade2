@@ -110,7 +110,9 @@ namespace SpaceTrade.Sim.Tuning
                 .Add("automation", new JsonObjectBuilder()
                     .Add("recheckMinIntervalDays", t.Automation.RecheckMinIntervalDays))
                 .Add("notifications", new JsonObjectBuilder()
-                    .Add("keepNewest", t.Notifications.KeepNewest));
+                    .Add("keepNewest", t.Notifications.KeepNewest))
+                .Add("receipts", new JsonObjectBuilder()
+                    .Add("keepNewest", t.Receipts.KeepNewest));
             return root.ToString();
         }
 

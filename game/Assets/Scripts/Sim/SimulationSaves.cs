@@ -23,7 +23,7 @@ namespace SpaceTrade.Sim
         /// rescheduled to the first due tick after now; nothing is granted for time that has already passed.
         /// </summary>
         internal void RestoreState(Market market, long credits, long suppliesBought, long inSystemIncome, int nextShipId,
-            IEnumerable<Ship> ships, IEnumerable<VoyageReceipt> receipts, IEnumerable<Notification> notifications,
+            IEnumerable<Ship> ships, DeliveryTotals deliveryTotals, IEnumerable<VoyageReceipt> receipts, IEnumerable<Notification> notifications,
             IEnumerable<EventQueue.ScheduledEvent> events, long nextSequence)
         {
             if (Market != null || _ships.Count > 0 || Events.Count > 0) throw new InvalidOperationException("Saved state can only go into a brand-new simulation.");
@@ -41,11 +41,21 @@ namespace SpaceTrade.Sim
             }
             _nextShipId = nextShipId;
             _receipts.AddRange(receipts);
+            try
+            {
+                deliveryTotals.Since(DeliveryTotals.Of(_receipts));
+            }
+            catch (ArgumentException)
+            {
+                throw new ArgumentException($"The delivery totals ({deliveryTotals.DescribeState()}) are smaller than the {_receipts.Count} receipts kept add up to; they must cover every delivery.");
+            }
+            _deliveryTotals = deliveryTotals.Copy();
             _notifications.AddRange(notifications);
             Events.Restore(events, nextSequence);
             CheckRestoredEvents();
             RescheduleMarketEventsForTuning();
             TrimNotifications();
+            TrimReceipts();
         }
 
         private void CheckRestoredEvents()

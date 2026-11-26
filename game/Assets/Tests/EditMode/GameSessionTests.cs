@@ -154,7 +154,7 @@ namespace SpaceTrade.Sim.Tests
             Assert.IsNull(Frame(session, OfflineCatchUp.WakeGapRealMs - 1));
             Assert.AreEqual(5 * (OfflineCatchUp.WakeGapRealMs - 1), sim.CurrentTick);
             Assert.AreEqual(1, session.SavesWritten, "No save for an ordinary frame.");
-            Assert.IsNull(session.LastWakeSummary);
+            Assert.IsNull(session.LastSummary);
         }
 
         [TestCase(true, TestName = "Wake_MonotonicClockStoppedDuringSleep_GapCountedOnceFromTheRealClock")]
@@ -176,7 +176,7 @@ namespace SpaceTrade.Sim.Tests
             Assert.AreEqual(tick + 5 * gap, sim.CurrentTick);
             Assert.AreEqual(gap, summary.RealMillisecondsAway);
             Assert.IsTrue(summary.ShouldShow);
-            Assert.AreSame(summary, session.LastWakeSummary);
+            Assert.AreSame(summary, session.LastSummary);
             Assert.AreEqual(T0 + 3 * Second + gap, SavedUtcMs(_folder, "a"), "The wake is saved at once.");
             Assert.AreEqual(sim.CurrentTick, Load(_folder, "a").CurrentTick);
 

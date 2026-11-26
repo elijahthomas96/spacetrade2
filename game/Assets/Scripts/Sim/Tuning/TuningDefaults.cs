@@ -133,6 +133,10 @@ namespace SpaceTrade.Sim.Tuning
                 {
                     KeepNewest = 200,
                 },
+                Receipts = new ReceiptTuning
+                {
+                    KeepNewest = 500,
+                },
             };
         }
 

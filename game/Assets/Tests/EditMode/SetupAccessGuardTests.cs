@@ -45,7 +45,8 @@ namespace SpaceTrade.Sim.Tests
                          typeof(NewGameResult), typeof(OpeningJob), typeof(OpeningOfferCheck),
                          typeof(Shipyard), typeof(YardStock), typeof(DriveUpgradePreview), typeof(PreviewLeg),
                          typeof(ShipRoute), typeof(Notification), typeof(CircuitEstimate), typeof(CircuitLeg), typeof(CircuitFreight),
-                         typeof(ReturnSummary), typeof(ShipAttention), typeof(SaveLoadResult), typeof(SaveWriteResult), typeof(GameSessionOpenResult) })
+                         typeof(ReturnSummary), typeof(ShipAttention), typeof(SaveLoadResult), typeof(SaveWriteResult), typeof(GameSessionOpenResult),
+                         typeof(DeliveryTotals), typeof(CatchUpRun) })
             foreach (var c in type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
                 Assert.IsTrue(c.IsAssembly, $"{type.Name} constructor must be internal");
         }
@@ -73,7 +74,8 @@ namespace SpaceTrade.Sim.Tests
                          typeof(NewGameResult), typeof(OpeningJob), typeof(OpeningOfferCheck),
                          typeof(Shipyard), typeof(YardStock), typeof(DriveUpgradePreview), typeof(PreviewLeg),
                          typeof(RouteStop), typeof(ShipRoute), typeof(Notification), typeof(CircuitEstimate), typeof(CircuitLeg), typeof(CircuitFreight),
-                         typeof(ReturnSummary), typeof(ShipAttention), typeof(SaveLoadResult), typeof(SaveWriteResult), typeof(GameSessionOpenResult), typeof(GameSession) })
+                         typeof(ReturnSummary), typeof(ShipAttention), typeof(SaveLoadResult), typeof(SaveWriteResult), typeof(GameSessionOpenResult), typeof(GameSession),
+                         typeof(DeliveryTotals), typeof(CatchUpRun) })
             foreach (var p in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
                 Assert.IsNull(p.GetSetMethod(false), $"{type.Name}.{p.Name} has a public setter");
         }

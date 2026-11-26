@@ -41,9 +41,12 @@ namespace SpaceTrade.Sim.Timing
         /// Forgets the real time since the last reading without advancing, and drops the carry. Used after a sleep, whose
         /// gap the offline catch-up rule has already counted, so it is never counted twice.
         /// </summary>
-        public void Resync()
+        public void Resync() => ResyncTo(_source.NowMicroseconds);
+
+        /// <summary>As <see cref="Resync"/>, but counting from an earlier reading of the same time source.</summary>
+        internal void ResyncTo(long readingMicroseconds)
         {
-            _lastReading = _source.NowMicroseconds;
+            _lastReading = readingMicroseconds;
             _carryGameMicroseconds = 0;
         }
 

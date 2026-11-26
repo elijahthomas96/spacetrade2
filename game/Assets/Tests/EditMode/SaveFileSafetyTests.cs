@@ -130,13 +130,13 @@ namespace SpaceTrade.Sim.Tests
             Assert.AreEqual("There is no save named \"nothing\".", r.Messages.Single());
         }
 
-        [TestCase(2, "it was made by a newer version of spacetrade2 (save format 2; this game reads formats 1 to 1)")]
-        [TestCase(99, "it was made by a newer version of spacetrade2 (save format 99; this game reads formats 1 to 1)")]
-        [TestCase(0, "its save format 0 is not one spacetrade2 has ever written (this game reads formats 1 to 1)")]
+        [TestCase(3, "it was made by a newer version of spacetrade2 (save format 3; this game reads formats 1 to 2)")]
+        [TestCase(99, "it was made by a newer version of spacetrade2 (save format 99; this game reads formats 1 to 2)")]
+        [TestCase(0, "its save format 0 is not one spacetrade2 has ever written (this game reads formats 1 to 2)")]
         public void NewerOrUnknownVersion_IsRefusedClearly_TheBackupIsNotUsed_AndNothingChanges(int version, string reason)
         {
             TwoSaves();
-            WriteText("a.json", SaveFormat.Seal(Text("a.json").Replace("\"version\": 1,", $"\"version\": {version},")));
+            WriteText("a.json", SaveFormat.Seal(Text("a.json").Replace("\"version\": 2,", $"\"version\": {version},")));
             var names = _folder.FileNames();
             byte[] main = Bytes(_folder, "a.json"), backup = Bytes(_folder, "a.json.bak");
 

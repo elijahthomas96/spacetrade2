@@ -153,7 +153,7 @@ A list. Each ship class has:
 | `berths` | passengers | Most passengers the ship can carry. |
 | `crew` | people | Crew aboard. They eat and drink like passengers. |
 | `price` | credits | Base price at a shipyard, including the slowest drive it comes with. Each yard charges this times its price roll. |
-| `inSystemDailyIncome` | credits per game day | What the ship earns doing in-system transport. At least 1, so a broke player can always recover. Aim for about 10 to 15 percent of what the ship earns from voyages in the same time. |
+| `inSystemDailyIncome` | credits per game day | What the ship earns doing in-system transport. At least 1, so a broke player can always recover. No more than about 25 percent of what the ship earns from voyages in the same time. Recovery target: a courier with zero credits can afford the cheapest feasible job in about 450 game days (see spec section 12). |
 
 **In-system transport** pays `inSystemDailyIncome` after each full game day (10,000 ticks, 10 real seconds at 1x) since the toggle went on. A partial day pays nothing, and switching off then on starts the count again. It earns nothing while the game is paused.
 
@@ -205,7 +205,17 @@ A list. Each drive tier has:
 | `keepNewest` | notifications | How many notifications (arrivals, blocked routes) the game keeps. When there are more, the oldest are dropped. Default 200, at least 1; 0 or less is an error naming `notifications.keepNewest`. |
 
 - **Lowering it trims old saves too.** When a save loads, any notifications beyond `keepNewest` are dropped, oldest first. Raising it later does not bring them back.
-- **Delivery receipts are never trimmed.** Every receipt is kept and saved, whatever this number is.
+- **Delivery receipts have their own limit.** See `receipts` below; this number does not affect them.
+
+## receipts
+
+| Field | Unit | Meaning |
+|---|---|---|
+| `keepNewest` | receipts | How many delivery receipts (one per completed delivery, with its cargo, payout, and supplies used) the game keeps in full. When there are more, the oldest are dropped. Default 500, at least 1; 0 or less is an error naming `receipts.keepNewest`. |
+
+- **Nothing is lost from the totals.** The game also keeps running totals of every delivery since the game began (deliveries, tonnes, passengers, revenue, and supplies used). A dropped receipt stays counted there, so the return summary after a long absence is still exact; it just lists only the newest receipts in full.
+- **Lowering it trims old saves too.** When a save loads, any receipts beyond `keepNewest` are dropped, oldest first; the totals do not change. Raising it later does not bring them back.
+- **Bigger is a bigger save.** Each receipt kept adds to the save file and to save time.
 
 ## Editing tuning with saves you already have
 

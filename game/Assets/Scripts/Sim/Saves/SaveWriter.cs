@@ -43,6 +43,7 @@ namespace SpaceTrade.Sim.Saves
             .Add("galaxy", Galaxy(sim.Market))
             .Add("market", Market(sim.Market))
             .Add("ships", sim.Ships.Select(Ship).ToList())
+            .Add("deliveryTotals", Totals(sim.DeliveryTotals))
             .Add("receipts", sim.Receipts.Select(Receipt).ToList())
             .Add("notifications", sim.Notifications.Select(n => new JsonObjectBuilder()
                 .Add("tick", n.Tick)
@@ -161,6 +162,19 @@ namespace SpaceTrade.Sim.Saves
                 .Add("emptyLeg", s.EmptyLeg)).ToList());
             return b;
         }
+
+        internal static JsonObjectBuilder Totals(DeliveryTotals t) => new JsonObjectBuilder()
+            .Add("deliveries", t.Deliveries)
+            .Add("freightTonnes", t.FreightTonnes)
+            .Add("passengers", t.Passengers)
+            .Add("freightRevenue", t.FreightRevenue)
+            .Add("fareRevenue", t.FareRevenue)
+            .Add("fuelKg", t.FuelKg)
+            .Add("fuelCost", t.FuelCost)
+            .Add("foodKg", t.FoodKg)
+            .Add("foodCost", t.FoodCost)
+            .Add("waterKg", t.WaterKg)
+            .Add("waterCost", t.WaterCost);
 
         private static JsonObjectBuilder Receipt(VoyageReceipt r) => new JsonObjectBuilder()
             .Add("ship", r.ShipId)

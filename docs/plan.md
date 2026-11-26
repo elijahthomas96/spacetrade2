@@ -87,6 +87,15 @@ Rules that apply to every session (also in `AGENTS.md`):
 
 **Checkpoint A.** The whole game now exists as rules with no screen. The agent runs the full EditMode suite and writes a short status in `docs/progress.md`. Eli reviews the default `tuning.json` with `docs/tuning-guide.md` before moving on.
 
+### Session 10b: scaling, receipts, and balance targets
+
+- Simulation and docs only; Assets/Art and Assets/Audio are not touched.
+- Receipts: keep the newest N in full (new tuning field `receipts.keepNewest`, default 500, at least 1) and running delivery totals for everything, so the return summary covers the whole absence exactly however many deliveries there were. Spec, tuning guide, live file, and fixture change together. Replaces the session 6 rule of keeping every receipt.
+- Long absences: no cap on offline time. Catch-up runs in slices through the same `Advance`, with a progress figure the screen can show, and ends in exactly the same state as one big step.
+- Bigger maps: measure galaxies of 25, 50, and 100 systems without changing any rule: generation guarantees across 200 seeds, freight offers and passenger pools, jobs a typical port lists, save size and time, and catch-up time for 30 real days at 5x with 10 ships on routes. Report options with a recommendation for anything that does not scale; build none of them.
+- Balance targets: record the owner's second-courier, recovery, in-system ceiling, and freight targets in spec sections 10 and 12 and as notes for session 18. Retune nothing.
+- **Done when:** tests pass for keeping only the newest receipts with exact totals, a return summary covering more deliveries than are kept, loading with a lower limit, converting a format 1 save, and slice-by-slice catch-up ending byte-identical to one big step (state, summary, and saved file); the full EditMode and PlayMode suites pass with a clean console; and the scaling measurements are recorded in `docs/progress.md` with options and a recommendation.
+
 ## Phase B: the game you can see
 
 ### Session 11: map shell
@@ -130,7 +139,7 @@ Rules that apply to every session (also in `AGENTS.md`):
 
 ### Session 18: balance and demo save
 
-- A headless balance harness (runs the simulation with a simple scripted player over many seeds, no screen) reporting against the five balance targets in spec 12. Adjust default `tuning.json` values to meet them.
+- A headless balance harness (runs the simulation with a simple scripted player over many seeds, no screen) reporting against the balance targets in spec 12 (and the recovery target in spec 10). Adjust default `tuning.json` values to meet them.
 - Build the demo save and the `timing-test` save (spec 11.4, 14.4).
 - **Done when:** the harness report is saved to `docs/balance-report.md` with each target marked met or not met with numbers, and both bundled saves load.
 

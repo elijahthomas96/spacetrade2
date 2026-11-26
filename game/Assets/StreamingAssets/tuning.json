@@ -322,5 +322,8 @@
   },
   "notifications": {
     "keepNewest": 200
+  },
+  "receipts": {
+    "keepNewest": 500
   }
 }
