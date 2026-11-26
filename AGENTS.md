@@ -31,6 +31,7 @@ A single-player Windows space trading simulator. Unity 6.6, C#. The Unity projec
 - Every economy value comes from the tuning data. No economy numbers hard-coded in logic.
 - Art and audio load from the fixed filenames in `docs/eli-tasks.md`. Create a placeholder for each. Never rename or delete a file the owner has replaced.
 - Tests use the fixed test tuning fixture, not the live `tuning.json`.
+- The project enters Play mode without reloading code. Anything in SpaceTrade.Game kept in static fields or caches must be reset at the start of every Play session. PlayMode results count only from the full suite run twice in a row, with the console cleared first and every message type read.
 
 ## Do not
 
