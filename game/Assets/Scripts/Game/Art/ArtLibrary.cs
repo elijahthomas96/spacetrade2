@@ -33,6 +33,17 @@ namespace SpaceTrade.Game.Art
             }
         }
 
+        /// <summary>
+        /// The project enters Play mode without a domain reload, so static state survives from the previous Play session,
+        /// whose generated stand-ins Unity destroys when that session ends.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetForPlaySession()
+        {
+            _sprites = null;
+            StandIns.Clear();
+        }
+
         /// <summary>Uses the given catalog (null means no art files at all, so everything is a stand-in).</summary>
         public static void Load(ArtCatalog catalog)
         {
@@ -48,7 +59,7 @@ namespace SpaceTrade.Game.Art
         public static Sprite Get(string key)
         {
             if (Sprites.TryGetValue(key, out var sprite)) return sprite;
-            if (!StandIns.TryGetValue(key, out sprite))
+            if (!StandIns.TryGetValue(key, out sprite) || sprite == null)
             {
                 sprite = MakeStandIn(key);
                 StandIns[key] = sprite;

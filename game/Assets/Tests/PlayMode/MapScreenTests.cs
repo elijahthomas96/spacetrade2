@@ -19,7 +19,9 @@ namespace SpaceTrade.Game.Tests
         private Simulation _sim;
         private Mouse _mouse;
         private Keyboard _keyboard;
-        private InputSettings _oldSettings, _testSettings;
+        private bool _settingsChanged;
+        private InputSettings.BackgroundBehavior _oldBackground;
+        private InputSettings.EditorInputBehaviorInPlayMode _oldEditorBehavior;
 
         private IEnumerator Open(int systems)
         {
@@ -32,11 +34,13 @@ namespace SpaceTrade.Game.Tests
             _sim = GameTestTuning.NewGameWithSystems(systems);
             _map.Show(_sim, new string[0], null);
 
-            _oldSettings = InputSystem.settings;
-            _testSettings = ScriptableObject.CreateInstance<InputSettings>();
-            _testSettings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
-            _testSettings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
-            InputSystem.settings = _testSettings;
+            // Changed in place: assigning a new InputSystem.settings makes the Input System destroy its default settings object.
+            var settings = InputSystem.settings;
+            _oldBackground = settings.backgroundBehavior;
+            _oldEditorBehavior = settings.editorInputBehaviorInPlayMode;
+            _settingsChanged = true;
+            settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
             _mouse = InputSystem.AddDevice<Mouse>("Test Mouse");
             _keyboard = InputSystem.AddDevice<Keyboard>("Test Keyboard");
             _map.Input.MouseDevice = _mouse;
@@ -50,11 +54,14 @@ namespace SpaceTrade.Game.Tests
         {
             if (_mouse != null) InputSystem.RemoveDevice(_mouse);
             if (_keyboard != null) InputSystem.RemoveDevice(_keyboard);
-            if (_oldSettings != null) InputSystem.settings = _oldSettings;
-            if (_testSettings != null) Object.Destroy(_testSettings);
+            if (_settingsChanged)
+            {
+                InputSystem.settings.backgroundBehavior = _oldBackground;
+                InputSystem.settings.editorInputBehaviorInPlayMode = _oldEditorBehavior;
+            }
             if (_map != null) Object.Destroy(_map.gameObject);
             if (_cameraObject != null) Object.Destroy(_cameraObject);
-            _mouse = null; _keyboard = null; _oldSettings = null; _testSettings = null; _map = null; _cameraObject = null;
+            _mouse = null; _keyboard = null; _settingsChanged = false; _map = null; _cameraObject = null;
         }
 
         private Vector2 ScreenOf(int systemId) =>
