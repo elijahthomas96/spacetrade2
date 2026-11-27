@@ -149,6 +149,7 @@ Rules that apply to every session (also in `AGENTS.md`):
 ### Session 18: balance and demo save
 
 - A headless balance harness (runs the simulation with a simple scripted player over many seeds, no screen) reporting against the balance targets in spec 12 (and the recovery target in spec 10). Adjust default `tuning.json` values to meet them.
+- Compare 14, 17.5, and 21 ly in the balance harness, including what freighters and liners lose at each.
 - Build the demo save and the `timing-test` save (spec 11.4, 14.4).
 - **Done when:** the harness report is saved to `docs/balance-report.md` with each target marked met or not met with numbers, and both bundled saves load.
 
