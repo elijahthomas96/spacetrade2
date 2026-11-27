@@ -57,6 +57,8 @@ Every final report gives:
 - Tests use the fixed test tuning fixture, not the live `tuning.json`.
 - Every colour, font, text size, spacing value, glow size, label rule, display limit, and camera or control feel value comes from the theme file, `game/Assets/StreamingAssets/theme.json`, read through `Theme`. No screen hard-codes these values, and `ThemeGuardTests` must pass. Every field is explained in `docs/theme-guide.md`. Tests use the fixed test theme fixture, not the live `theme.json`.
 - Only one side panel is open at a time. Opening another replaces it, closing it brings back the one it replaced, and Esc closes the top one.
+- PlayMode tests, screenshots, and frame-time measurements always run with the Game view at 1920 x 1080. The shared PlayMode test setup (`TestGameView`) sets this itself and restores the previous size afterwards; for screenshots and live measurements, set it before entering Play.
+- Frame-time measurements are run hands-off: start a case, send nothing to Unity until it has finished, then read the report. A status check during a measurement stalls the Editor and spoils the frame times. Confirm the Unity window is focused before and after each case.
 - The project enters Play mode without reloading code. Anything in SpaceTrade.Game kept in static fields or caches must be reset at the start of every Play session. PlayMode results count only from the full suite run twice in a row, with the console cleared first and every message type read.
 
 ## Do not

@@ -9,6 +9,7 @@ The agent updates this file at the end of every session.
 - Checkpoint A: reached and reviewed by the owner (status below)
 - Unity Editor version: `6000.6.10f1 (40e81493c67d)` (Unity 6.6)
 - Builder: Claude Code from session 14 on (sessions 1 to 13 were built in Cursor). See "Move to Claude Code" below.
+- Counts to compare at the start of session 14: EditMode 507 passed, 0 failed, 25 skipped of 532; **PlayMode 103 of 103** (one test added in the step before session 14, see "Before session 14: Game view size" below).
 
 ## Session log
 
@@ -29,6 +30,7 @@ The agent updates this file at the end of every session.
 | 10c | 2026-11-26 | Done | EditMode 489/489 twice in a row (plus 25 measurement tests run by name), PlayMode 19/19 twice in a row, console clean; a fresh sub-agent re-ran both suites twice independently and saw the same counts and a clean console | Option 1: offers and pools indexed by origin system (`Market.OffersFrom`/`PoolsFrom` read a per-system list instead of scanning the galaxy), same order, so every random roll is unchanged. Option 2: the job distance limit `galaxy.maxJobDistanceMilliLy` (live 14,000 = 14 ly; fixture 1,000,000 = no limit), fixed at game creation and stored in the save (format 3; format 2 converts with every job kept). Ports offer jobs only within it; the galaxy guarantees count only trades within it; loaded voyages and loaded route legs beyond it are refused with both distances, empty ones are allowed. 28 new tests (25 in `JobDistanceLimitTests`, 3 in `LiveTuningTests`), all passed on their first run. Real figures: with the limit effectively unlimited, the 25 and 50 system catch-up end states (A9425D864D611835, A0130435E7B5680D) and the 200-seed generation fingerprints (B5665535A1918378, B85151740220DFBB) equal session 10b's code exactly. Catch-up for 30 real days at 5x: 25 systems 36.2 s before, 25.6 s with option 1, 17.5 s with 14 ly; 50 systems 197.4 s, 109.8 s, 48.8 s. Live file at 14 ly met every guarantee on 200 seeds at 12, 25, and 50 systems. Details under "Session 10c: speed fix and job distance limit". |
 | 12 | 2026-11-26 | Done | EditMode 498 passed, 0 failed, 25 skipped (the measurement tests, run by name) of 523, twice in a row; PlayMode 45/45 twice in a row; console clean each time (only the test runner's own log lines). The main agent then repeated all four runs independently, console cleared before each and every message type read: the same counts, and the same 4 log lines per run with no error, warning, or assert | Ships drawn at their true positions (`Simulation.PositionOf`, a read-only `ShipPosition` in whole milli-ly, never stored), current legs and active route loops drawn, selected paused routes dimmed, docked ships fanned out (at most 5, then "+N"), ship selection by click, follow mode through every speed, the ship panel, and the close-up (wheel in at the closest zoom or the Close-up button; wheel out, Esc, or the close button leaves) with live manifest, crew, passengers, remaining supplies, drive, destination, progress, ETA, and payout. Starter ship selected at start. Ship art by class id with the freighter and liner mapping. A static-state guard test, a new Editor test assembly that enters Play twice, debug-only fleet setup and frame-time probe. 35 new tests (8 simulation and 1 two-Play-session test in the EditMode suite, 26 PlayMode cases). Real figures: see "Session 12: ships on the map" below. |
 | 13 | 2026-11-26 | Done | EditMode 507 passed, 0 failed, 25 skipped (the measurement tests, run by name) of 532, twice in a row; PlayMode 102 passed, 0 failed, 0 skipped of 102, twice in a row; console cleared first and every message type read after each run: no error, warning, or assert (EditMode: 4 log lines per run; PlayMode: 11 log lines per run, 7 of them the `[sound]` lines two tests switch on deliberately). The main agent repeated all four runs independently on 2026-11-27 after a Unity restart: the same counts and the same log lines, no error, warning, or assert | The always-visible top bar (date, pause/play, 1x/3x/5x, credits, notification bell with unseen count, settings), Space and 1/2/3 keys, the notification list with click-to-jump, the settings panel (master, effects, music sliders and mute, remembered in `settings.json`, not in the save), the sound system wired to the owner's 24 real files, the theme file `theme.json` with a strict reader (field and line named, whole-file fallback) and `docs/theme-guide.md`, the map, panels, and close-up moved onto the theme, ETA and notification dates worked out by the simulation (`Simulation.EtaOf`, `VoyageEta`, `Notification.Date`). 66 new tests (8 simulation and 1 two-Play-session test in the EditMode suite, 57 PlayMode cases). Real figures: see "Session 13: top bar, notifications, sound, theme file" below. |
+| Before 14 | 2026-11-27 | Done | EditMode 507 passed, 0 failed, 25 skipped of 532, twice in a row; PlayMode 103 of 103, twice in a row; console cleared first and every message type read: no error, warning, or assert | A small step of its own, not a plan session. Session 14's start-of-session checks found PlayMode at 101 of 102: one test depended on the size of the owner's Game view. The shared PlayMode test setup now sets the Game view to 1920 x 1080 and restores it; no check in any existing test changed; one test added. Frame times re-measured at 1920 x 1080, hands-off. Details under "Before session 14: Game view size". |
 
 ## Checkpoint A status
 
@@ -308,9 +310,59 @@ Sessions 1 to 13 were built in Cursor. From session 14 on the project is built i
 
 Unity's memory: the main Unity process used 1.72 GB before the four runs and 1.91 GB after; a second, helper Unity process stayed at about 1.1 GB.
 
-**Where screenshots go.** The session 12 and 13 screenshots are in Cursor's folder (`C:\Users\Elijah\.cursor\projects\d-dev-spacetrade2\`), outside the repository, and stay there. Session 14 should ask the owner where new screenshots go.
+**Where screenshots go.** The session 12 and 13 screenshots are in Cursor's folder (`C:\Users\Elijah\.cursor\projects\d-dev-spacetrade2\`), outside the repository, and stay there. **Answered by the owner (2026-11-27):** screenshots for session 14 and every later session go in `docs/screenshots/session-NN/` inside the project and are committed, and they are taken with the Game view at 1920 x 1080.
 
 **The settings panel over the ship panel.** The layout question noted in the main agent's check of session 13 (the settings panel opening over the ship panel) is settled by the one-side-panel rule above. No code follows that rule yet; it is for the sessions that build or touch panels, starting with session 14.
+
+## Before session 14: Game view size (2026-11-27)
+
+A small step of its own, done in the session 14 chat before any session 14 work, on the owner's instruction. The "Game view" is the window inside Unity that the game draws in.
+
+**What the start-of-session checks found.** Tree clean, `main` equal to `origin/main` (`2a72c4d`). Unity's main process 1.87 GB, helper 1.10 GB. EditMode 507 passed, 0 failed, 25 skipped of 532, twice, as recorded. **PlayMode 101 passed, 1 failed of 102, twice**, against 102 of 102 recorded: `SoundEventTests.SelectFollowAndPanels_PlayTheirSounds_AndTheMapMusicAndCloseUpAmbienceLoop` failed at its first check ("Expected: 9 But was: -1": the test clicks the star lowest on the screen and nothing was selected). The console had the usual log lines and no error, warning, or assert. No code had changed since session 13. The session stopped and reported.
+
+**Cause, confirmed.** The owner's Game view was 606 x 306 pixels; sessions 12 and 13 ran with it at about 786 x 346. With the Game view set to a fixed 1920 x 1080 and nothing else changed, PlayMode gave 102 of 102 twice in a row. The test's click depended on the size of the window.
+
+**The fix: tests set the size themselves.**
+- `Tests/PlayMode/TestGameView.cs`: a set-up that runs once around the whole PlayMode run. Before the first test it selects the fixed 1920 x 1080 size in the Game view (bringing the Game tab to the front, because a hidden tab keeps its old size); after the last test it puts back whatever size was selected before. Unity has no public way to do this, so it uses reflection (code reaching into Unity's own Editor code), in the Editor only.
+- `MapTestRig.Open` first waits until the screen really is 1920 x 1080, and fails the setup with a clear message if it never is.
+- **No check in any existing test changed.** The only edit to an existing test file is that one wait in `MapTestRig.Open`.
+- One test added, `GameViewSizeTests.ThePlayModeRun_HasTheGameViewAt1920x1080_WhateverSizeTheOwnersWindowIs` (screen, map camera, and interface layer all 1920 x 1080). PlayMode is now 103 tests.
+- Shown working from the owner's "Free Aspect" setting: 103 of 103, and the Game view was back on "Free Aspect" afterwards.
+- Not covered: the Editor test that enters Play twice (`PlaySessionTwiceTests`, in the EditMode run) does not set the size. It passed at 606 x 306 and at every size seen.
+
+**New rules (in `AGENTS.md`).** PlayMode tests, screenshots, and frame-time measurements always run with the Game view at 1920 x 1080. Frame-time measurements are run hands-off (below).
+
+**Counted runs (after the last code change; console cleared before each; every message type read after each; started from the owner's "Free Aspect" view).**
+
+| Run | Passed | Failed | Skipped | Total | Console |
+|---|---|---|---|---|---|
+| EditMode 1 | 507 | 0 | 25 | 532 | The same 4 log lines as session 13. No error, warning, or assert. |
+| EditMode 2 | 507 | 0 | 25 | 532 | The same 4 lines. |
+| PlayMode 1 | 103 | 0 | 0 | 103 | The same 11 log lines as session 13 (4 from the test runner and MCP, the 7 `[sound]` lines). No error, warning, or assert. |
+| PlayMode 2 | 103 | 0 | 0 | 103 | The same 11 lines (frame numbers 75 higher). |
+
+**Frame times re-measured at 1920 x 1080.** Live Play on the `Main` scene, Game view fixed at 1920 x 1080 (`Screen` read 1920 x 1080 before each case), Unity window focused before and after each case, 8 seconds per speed, the same seeds as session 13. "Old" is session 13's figure, measured in a view of about 788 x 347. Each cell is slowest frame / slowest script work, in milliseconds.
+
+| Systems | Ships in flight | Seed | 1x following: old | new | 3x close-up: old | new | 5x pan and zoom: old | new | One-off frame: old | new |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 12 | 1 | 1301 | 8.2 / 3.2 | 18.4 / 4.0 | 7.6 / 3.2 | 10.2 / 3.2 | 8.6 / 4.3 | 10.4 / 3.1 | 9.3 | 8.8 |
+| 12 | 50 | 1302 | 12.0 / 3.3 | 10.1 / 4.0 | 12.2 / 5.4 | 9.9 / 3.9 | 12.4 / 5.4 | 10.4 / 4.1 | 13.1 | 11.2 |
+| 50 | 1 | 1303 | 12.1 / 5.3 | 9.7 / 4.0 | 11.8 / 3.2 | 9.8 / 4.0 | 8.7 / 5.1 | 10.6 / 3.2 | 34.5 | 32.8 |
+| 50 | 50 | 1304 | 12.6 / 6.0 | 11.0 / 4.0 | 14.0 / 8.7 | 9.7 / 3.9 | 13.0 / 4.7 | 10.0 / 4.0 | 58.7 | 56.8 |
+| 50 | 50, with 200 notifications and the list open | 1305 | 12.3 / 5.4 | 9.4 / 3.4 | 12.3 / 5.2 | 10.2 / 4.2 | 12.3 / 5.9 | 9.8 / 4.3 | 97.8 | 86.2 |
+
+- Mean frame 1.1 to 1.4 ms throughout; 5,742 to 7,289 frames per 8-second stretch (session 13: 4,913 to 7,737).
+- **Result: the bigger view made no measurable difference.** No ordinary frame came near 50 ms (slowest 18.4 ms) and no frame came near 250 ms (slowest 196.2 ms, the debug-only fill below).
+- **One-off parts, new figures.** New game 2.8, 2.6, 16.5, 42.4, 72.1 ms; map build 1.0, 2.9, 2.1, 4.0, 4.1 ms; debug fleet 1.0, 2.1, 9.6, 5.8, 4.3 ms (rows in order). Opening the game normally (live file, 12 systems, seeds 812395721 and 812825524): new game 3.1 and 1.8 ms, map build 0.8 and 0.7 ms.
+- **The debug-only fill of the notification list** (row 5, its own frame, not something a player's game does): 192.6 ms, 196.2 ms for its whole frame (session 13: 197.7 and 206.2 ms).
+- **Row 5 was measured twice.** At the end of its first run Unity reported it was no longer the focused window (the owner was using another program), so it was run again with focus confirmed before and after; the table has the second run. The first run's figures were: 1x 9.4 / 4.2, 3x 9.6 / 3.3, 5x 9.6 / 4.2, one-off frame 78.4 ms, fill 182.4 ms (189.2 ms whole frame).
+- Console during the measurement Play session: 0 entries of any type.
+
+**A status check during a measurement stalls the Editor: measure hands-off.** The first attempt at row 1 recorded one frame of **719.2 ms** in the 1x stretch (script work in that stretch at most 3.9 ms, every other frame under 11 ms). The session stopped and reported it, as the 250 ms rule says. The likely cause was the agent's own status check: a few seconds into the stretch it asked Unity, through MCP, whether the check was still running, and that kind of request makes Unity compile a small piece of code on the spot, which freezes the Editor for a moment. Run again hands-off (start the case, send nothing to Unity until it has finished, then read the report), the same case's slowest frame was 18.4 ms, and no case showed a long frame. The cause was not proved with the profiler; the evidence is that the frame went away when the status check did. **From now on every frame-time measurement is run hands-off**, and this is in `AGENTS.md` beside the 1920 x 1080 rule.
+
+**The third Unity process.** During this step a third `Unity.exe` appeared. It is a second "asset import worker" (`AssetImportWorkerHW1`), a helper the Editor starts to import new or changed files; it started at 14:45, when the two new test files were imported, beside the first worker (`AssetImportWorkerHW0`) that starts with the Editor. It had not gone away by the end of the step, about 40 minutes later, using about 1.1 GB. Unity memory at the end: main process 1.37 GB, workers 0.72 GB and 1.16 GB.
+
+**Owner's files.** `git status --short game/Assets/Art game/Assets/Audio art-source` printed nothing: no art, audio, or art-source file changed.
 
 ## Decisions made during the build
 
@@ -539,6 +591,8 @@ Unity's memory: the main Unity process used 1.72 GB before the four runs and 1.9
 - **Frame checks with a full list (session 13).** Filling the list is debug or test setup in its own frame, labelled, outside the 250 ms one-off limit, which is about things a player's game does (new game, later loading a save).
 
 ## Notes for future sessions
+
+- **Every session from 14 on (Game view, 2026-11-27):** PlayMode tests set the Game view to 1920 x 1080 themselves (`TestGameView`). For screenshots and live frame-time measurements, set it to the fixed "Full HD (1920x1080)" size before entering Play, and bring the Game tab to the front, or the size does not take effect. Run frame-time measurements hands-off: no MCP call to Unity between starting a case and its end. If the owner is using another program, Unity loses focus; check focus before and after each case and repeat a case that lost it. Screenshots go in `docs/screenshots/session-NN/` and are committed.
 
 - **Every session from 14 on (session 13, hard rule):** no screen hard-codes a colour, font, text size, spacing, glow size, label rule, display limit, or control value. Add a field to `GameTheme`, to `theme.json`, to the test fixture `test-theme.json`, and to `docs/theme-guide.md` (all four, or a test fails), and read it through `Theme`. Panels that open over other panels should use `colours.dropdown`.
 - **Every session from 14 on (session 13, sound):** send player commands through `SimulationRunner.Command(s => s.Dispatch(...))` so a refusal plays the error sound; buttons with no more specific sound play `click` through `GameAudio`. Entering Play resets Unity's listener volume to 1, so silence it after entering Play in live checks if the owner should not hear them.

@@ -58,6 +58,8 @@ namespace SpaceTrade.Game.Tests
 
         public IEnumerator Open(Simulation sim, bool fakeTime = true)
         {
+            // Every test sees the same 1920 x 1080 screen, whatever size the owner's Game view is.
+            yield return TestGameView.WaitUntilApplied();
             Build(sim, fakeTime);
             yield return Frames();
         }
