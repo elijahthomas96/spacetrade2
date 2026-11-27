@@ -13,7 +13,7 @@ spacetrade2 is a single-player Windows game about running an interstellar transp
 | Project location | `D:\dev\spacetrade2`, Unity project in the `game` subfolder |
 | Goal structure | Pure sandbox. No win state, no lose state, no milestone list |
 | Visual style | Clean vector look: simple shapes and icons on a dark background. Agent builds with placeholder art; Eli replaces files later |
-| Sound | Full sound system built, every sound slot filled with a silent placeholder file |
+| Sound | Full sound system built, every sound slot filled by one of the owner's own audio files (section 9.6) |
 | Economy values | Every value in one editable tuning file (section 12) |
 | First voyage | Every new save guarantees at least one profitable first voyage (section 6.4) |
 | Later voyages | Rates vary randomly within tuning ranges. Profit is not guaranteed |
@@ -69,6 +69,7 @@ Required cases (these are tests):
 - Every voyage shows its in-game arrival date and the real time remaining at the current speed.
 - While paused, the real-time countdown freezes and shows "Paused".
 - An arrival or a blocked route raises a notification. Other ships keep moving.
+- **Worked out by the simulation (owner's decision, session 13).** The arrival date, the real time remaining, the "Paused" state, and each notification's date all come from the simulation. Both ETA displays (the ship panel and the close-up) and the notification list only show them; the screen never works out its own times.
 
 ## 4. Galaxy
 
@@ -334,10 +335,11 @@ Events at the same tick are processed in this order: (1) arrivals, by ship id; (
 - Map inspection and route planning stay available while ships travel and while the clock is paused.
 - **Details (owner's decisions, session 12):**
   - The game opens with the starter ship selected and the whole galaxy in view, not following.
-  - Clicking picks the nearest ship or star within 24 screen pixels; a ship wins a tie. Clicking empty space or pressing Esc clears the selection.
+  - Clicking picks the nearest ship or star within the click radius, `controls.clickRadiusPixels` in the theme file (section 9.7; default 24 screen pixels); a ship wins a tie. Clicking empty space or pressing Esc clears the selection.
   - **Follow.** F or the Follow button keeps the selected ship centred through every speed change. Dragging, WASD or the arrow keys, F again, Esc, or selecting something else ends it. Zooming does not end it: the wheel zooms around the followed ship.
   - **Routes drawn.** Every ship's current leg is drawn, plus the full loop of every active automated route. Paused routes are hidden, except that the selected ship's route is always drawn, even when paused, and a paused one is drawn dimmed. The selected ship's lines are brighter.
-  - **Docked ships.** Up to 5 ship icons are fanned out beside the star; beyond that the star's name shows a count such as "+7". This is drawing only: the ship's position is still exactly the star. Selecting the star lists every docked ship in the system panel.
+  - **Ship names (owner's decision, session 13).** A moving ship shows its name only when it is selected or under the mouse (`labels.movingShipNames` in the theme file).
+  - **Docked ships.** Up to 5 ship icons (`ships.maxDockedIconsPerStar` in the theme file, section 9.7; default 5) are fanned out beside the star; beyond that the star's name shows a count such as "+7". This is drawing only: the ship's position is still exactly the star. Selecting the star lists every docked ship in the system panel.
   - **Close-up.** It opens with the mouse wheel inwards at the closest zoom while a ship is selected, or with the Close-up button in the ship panel. Wheel outwards, Esc, or the close button leaves it, back at the closest zoom and following the same ship. Time keeps running and the selection stays. For a ship in flight it also shows the locked payout on arrival and the real time left at the current speed (section 3.4); the backdrop streaks. For a docked ship it shows "Docked at X", the supplies aboard, the drive, and the crew, with no ETA, and the backdrop is still.
 
 ### 9.2 System view
@@ -351,6 +353,12 @@ Every ship with a status the player can tell apart at a glance: in transit, wait
 ### 9.4 Always-visible bar
 
 Date, pause/play, speed buttons (1x, 3x, 5x), credits, notification list. Notifications are clickable and jump to the ship or system.
+
+- **Details (owner's decisions, session 13):**
+  - The bar stays on top of every screen, including the close-up. It also carries the settings button (the three volume sliders and mute, section 9.6).
+  - The bell shows how many notifications have arrived since the list was last opened. The list shows the newest first, each with its date, an icon, and its text.
+  - Clicking a notification selects its ship and centres the map on where that ship is now, even if it has moved on since. Every notification so far is about a ship; one about a system will jump to the system the same way.
+  - Esc closes the open list or settings first, then the close-up, then clears the selection.
 
 ### 9.5 Controls (defaults)
 
@@ -370,7 +378,17 @@ Date, pause/play, speed buttons (1x, 3x, 5x), credits, notification list. Notifi
 - Every sprite and icon is loaded from a file with a fixed name under `game/Assets/Art/`. The agent creates a simple placeholder for each. Replacing the file with the same name swaps the art with no code change. The full list is in `eli-tasks.md`.
 - Icons are white on transparent so the code can tint them.
 - **Icons looked up by id.** An industry with tuning id `x` uses `Icons/industry_x.png` and a commodity with id `x` uses `Icons/cargo_x.png`, so adding one to the tuning file needs no code change. Any image with no file gets an automatic stand-in drawn by the game, with no error. The four default industries whose files were named before their ids existed are mapped by a fixed list in the presentation code (`mining_colony` to `industry_mining`, `agricultural_system` to `industry_agriculture`, `population_hub` to `industry_population`, `shipyard_works` to `industry_shipyard`). Ship classes follow the same pattern (`Ships/x_map.png`, `Ships/x_closeup.png`), with the defaults `bulk_freighter` and `passenger_liner` mapped to the existing `freighter_*` and `liner_*` files.
-- Every sound event in `eli-tasks.md` is wired to a named audio file under `game/Assets/Audio/`, each a silent placeholder. The settings menu has master, effects, and music volume sliders and a mute toggle.
+- Every sound event in `eli-tasks.md` is wired to a named audio file under `game/Assets/Audio/`. The files there are the owner's real audio and are used as they are; a silent stand-in is made only for a file that is missing. The settings menu has master, effects, and music volume sliders and a mute toggle.
+- **Sound rules (owner's decisions, session 13):**
+  - Sounds follow game events, once per event, never once per frame. The same sound asked for more than once in the same frame plays once.
+  - Only the more specific sound plays: pause without a click, dispatch without the provision sound. The one exception is a paid arrival, which plays arrival and payment together.
+  - **Time jumps.** The code that performs an offline catch-up, a sleep-wake catch-up, or a debug skip declares the jump to the sound system when it begins and when it ends. Between the two, every per-event sound is dropped, and the return summary sound plays once at the end. An ordinary frame, however long or slow, is never a jump: an arrival in it plays its sound. A jump is never guessed from the size of a time step.
+  - Volume and mute are remembered between runs in `settings.json` beside the saves folder. They are not part of the game save. Mute silences everything at once, including sounds already playing.
+
+### 9.7 Theme file
+
+- Every colour, font, text size, spacing value, glow size, label rule, and display limit lives in one file, `game/Assets/StreamingAssets/theme.json`, which every screen reads. Camera and control feel values (click radius, zoom per wheel notch, keyboard pan speed, zoom limits) are in its own `controls` section, separate from the look. No screen hard-codes any of these. Every field is explained in plain language with its unit in `docs/theme-guide.md`.
+- The file is read like `tuning.json` (section 12): a bad or missing value, or an unknown or misspelled field, gives a message naming the field and the line, and the game uses the complete built-in defaults instead of breaking. As with tuning, one error means the whole file is set aside, not just the bad field.
 
 ## 10. In-system transport
 
@@ -404,7 +422,7 @@ Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\Local
 - **Notifications:** the newest ones kept (section 12, `notifications.keepNewest`).
 - **Pending events:** every scheduled event (arrivals, market replenishment and re-rolls, in-system pay days, route rechecks) with its tick and its ordering number, plus the next ordering number, stored exactly. Loading checks that these events match the ships, routes, and systems, and refuses a save where they do not. Same-tick events therefore keep their exact order across a save and load, and a save and load round trip is byte-identical in the full state dump, with nothing ignored.
 
-Debug permission (section 13) is never saved.
+Debug permission (section 13) is never saved. Volume and mute settings (section 9.6) are not in a save either; they have their own file.
 
 ### 11.2 Writing and loading
 

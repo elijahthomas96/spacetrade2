@@ -14,6 +14,9 @@ namespace SpaceTrade.Sim
         public int ShipId { get; }
         public string Text { get; }
 
+        /// <summary>The in-game date it was raised, for the notification list (spec 9.4).</summary>
+        public Timing.GameDate Date => Timing.GameDate.FromTick(Tick);
+
         internal Notification(long tick, NotificationKind kind, int shipId, string text)
         {
             Tick = tick;

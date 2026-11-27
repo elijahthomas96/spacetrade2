@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using SpaceTrade.Game.Art;
+using SpaceTrade.Game.Theming;
 using SpaceTrade.Sim;
 using SpaceTrade.Sim.Voyages;
 using UnityEngine;
@@ -13,21 +14,12 @@ namespace SpaceTrade.Game.Map
     /// </summary>
     public sealed class ShipMapView : MonoBehaviour
     {
-        public const float IconPixels = 26f;
-        public const float DockedIconPixels = 22f;
-        public const float GlowPixels = 56f;
-        public const float TrailPixels = 52f;
-        public const float RingPixels = 44f;
-        public const int MaxFannedPerStar = 5;
-        public const float FanRadiusPixels = 36f;
-        public const float FanFirstAngleDegrees = 150f;
-        public const float FanStepDegrees = 40f;
+        // Sizes, the fan's shape, and the limit on docked icons per star all come from the theme.
+        public static float DockedIconPixels => Theme.Ships.DockedIconPixels;
+        public static int MaxFannedPerStar => Theme.Ships.MaxDockedIconsPerStar;
+        public static float FanRadiusPixels => Theme.Ships.FanRadiusPixels;
         /// <summary>Where the "+N" count for the docked ships not drawn sits, below the star.</summary>
-        public const float OverflowBelowPixels = 62f;
-
-        private static readonly Color GlowTint = new Color(1f, 1f, 1f, 0.75f);
-        private static readonly Color TrailTint = new Color(1f, 1f, 1f, 0.9f);
-        private static readonly Color RingTint = new Color(1f, 0.85f, 0.4f, 1f);
+        public static float OverflowBelowPixels => Theme.Ships.OverflowBelowPixels;
 
         private sealed class Marker
         {
@@ -59,7 +51,7 @@ namespace SpaceTrade.Game.Map
             Clear();
             _sim = sim;
             _camera = camera;
-            _ring = MakeSprite(transform, "Ship selection", ArtLibrary.Get("Map/selection_ring"), RingTint, 8);
+            _ring = MakeSprite(transform, "Ship selection", ArtLibrary.Get("Map/selection_ring"), Theme.Colours.ShipRing, 8);
             _ring.enabled = false;
             Refresh();
         }
@@ -95,26 +87,28 @@ namespace SpaceTrade.Game.Map
                 }
             }
 
+            var look = Theme.Ships;
+            int maxFanned = look.MaxDockedIconsPerStar;
             foreach (var pair in _docked)
             {
                 var list = pair.Value;
                 if (list.Count == 0) continue;
                 int selected = list.FindIndex(m => m.ShipId == SelectedShipId);
-                if (selected >= MaxFannedPerStar)
+                if (selected >= maxFanned)
                 {
                     var s = list[selected];
                     list.RemoveAt(selected);
-                    list.Insert(MaxFannedPerStar - 1, s);
+                    list.Insert(maxFanned - 1, s);
                 }
                 for (int i = 0; i < list.Count; i++)
                 {
                     var m = list[i];
-                    m.Visible = i < MaxFannedPerStar;
-                    float a = (FanFirstAngleDegrees + FanStepDegrees * i) * Mathf.Deg2Rad;
-                    m.Drawn = m.Anchor + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * (FanRadiusPixels * upp);
+                    m.Visible = i < maxFanned;
+                    float a = (look.FanFirstAngleDegrees + look.FanStepDegrees * i) * Mathf.Deg2Rad;
+                    m.Drawn = m.Anchor + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * (look.FanRadiusPixels * upp);
                     m.Root.localRotation = Quaternion.identity;
                 }
-                if (list.Count > MaxFannedPerStar) _overflow.Add((pair.Key, list.Count - MaxFannedPerStar));
+                if (list.Count > maxFanned) _overflow.Add((pair.Key, list.Count - maxFanned));
             }
 
             foreach (var m in _ordered)
@@ -122,14 +116,14 @@ namespace SpaceTrade.Game.Map
                 m.Root.gameObject.SetActive(m.Visible);
                 if (!m.Visible) continue;
                 m.Root.localPosition = m.Drawn;
-                SetPixelSize(m.Icon, m.InTransit ? IconPixels : DockedIconPixels, upp);
+                SetPixelSize(m.Icon, m.InTransit ? look.IconPixels : look.DockedIconPixels, upp);
                 m.Glow.enabled = m.InTransit;
                 m.Trail.enabled = m.InTransit;
                 if (m.InTransit)
                 {
-                    SetPixelSize(m.Glow, GlowPixels, upp);
-                    SetPixelSize(m.Trail, TrailPixels, upp);
-                    m.Trail.transform.localPosition = new Vector3(-(IconPixels * 0.35f + TrailPixels / 2f) * upp, 0f, 0f);
+                    SetPixelSize(m.Glow, look.GlowPixels, upp);
+                    SetPixelSize(m.Trail, look.TrailPixels, upp);
+                    m.Trail.transform.localPosition = new Vector3(-(look.IconPixels * look.TrailOffset + look.TrailPixels / 2f) * upp, 0f, 0f);
                 }
             }
 
@@ -138,9 +132,12 @@ namespace SpaceTrade.Game.Map
             if (ringOn)
             {
                 _ring.transform.localPosition = _markers[SelectedShipId].Drawn;
-                SetPixelSize(_ring, RingPixels, upp);
+                SetPixelSize(_ring, look.SelectionRingPixels, upp);
             }
         }
+
+        /// <summary>True when the ship was in flight when it was last placed.</summary>
+        public bool IsInTransit(int shipId) => _markers.TryGetValue(shipId, out var m) && m.InTransit;
 
         /// <summary>Where the ship is drawn this frame (beside its star when docked). False when it is not drawn.</summary>
         public bool TryGetDrawn(int shipId, out Vector2 world)
@@ -198,9 +195,9 @@ namespace SpaceTrade.Game.Map
                 {
                     ShipId = ship.Id,
                     Root = root,
-                    Glow = MakeSprite(root, "Glow", ArtLibrary.Get("Ships/warp_glow"), GlowTint, 5),
-                    Trail = MakeSprite(root, "Trail", ArtLibrary.Get("Ships/engine_trail"), TrailTint, 6),
-                    Icon = MakeSprite(root, "Icon", ArtLibrary.ShipMapIcon(ship.ClassId), Color.white, 7),
+                    Glow = MakeSprite(root, "Glow", ArtLibrary.Get("Ships/warp_glow"), Theme.Colours.ShipGlow, 5),
+                    Trail = MakeSprite(root, "Trail", ArtLibrary.Get("Ships/engine_trail"), Theme.Colours.ShipTrail, 6),
+                    Icon = MakeSprite(root, "Icon", ArtLibrary.ShipMapIcon(ship.ClassId), Theme.Colours.ShipIcon, 7),
                 };
                 _markers[ship.Id] = m;
                 _ordered.Add(m);

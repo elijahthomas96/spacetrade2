@@ -37,6 +37,12 @@ The full list, with a checkbox per sound, is in `docs\audio-checklist.md`. 24 so
 - [ ] Change one group of values at a time, then have the agent re-run the balance harness (session 18) and compare the report.
 - [ ] If the game reports a tuning error on start, the message names the bad field. The game falls back to defaults until it is fixed.
 
+## 5a. Editing the look and the controls
+
+- [ ] Edit `game\Assets\StreamingAssets\theme.json` in VS Code or Cursor. `docs\theme-guide.md` explains every field in plain language with its unit. Colours, text sizes, spacing, glow sizes, label rules, and display limits are in the look sections; click radius, zoom, and keyboard pan speed are in the `controls` section.
+- [ ] If the game reports a theme error on start, the message names the bad field and the line. The game uses the built-in look and controls until it is fixed.
+- [ ] After session 13: play in the Editor with the sound on and listen to every sound (the agent cannot hear). The agent's session 13 notes in `docs\progress.md` list what to listen for.
+
 ## 6. Final checks only you can do (session 21)
 
 Run these in the normal Windows build from the zip, not in the Editor. Use a phone stopwatch.

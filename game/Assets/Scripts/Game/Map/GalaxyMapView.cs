@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using SpaceTrade.Game.Art;
+using SpaceTrade.Game.Theming;
 using SpaceTrade.Sim.World;
 using UnityEngine;
 
@@ -7,19 +8,12 @@ namespace SpaceTrade.Game.Map
 {
     /// <summary>
     /// Draws the star systems. One world unit is one light-year. Markers keep the same size on screen at every zoom, so
-    /// the map works the same for 8 systems or 50.
+    /// the map works the same for 8 systems or 50. Sizes and tints come from the theme.
     /// </summary>
     public sealed class GalaxyMapView : MonoBehaviour
     {
-        public const float StarPixels = 26f;
-        public const float GlowPixels = 84f;
-        public const float BadgePixels = 15f;
-        public const float RingPixels = 58f;
-
-        private static readonly Color StarTint = new Color(1f, 0.96f, 0.88f, 1f);
-        private static readonly Color GlowTint = new Color(1f, 0.92f, 0.8f, 0.55f);
-        private static readonly Color BadgeTint = new Color(1f, 0.8f, 0.35f, 1f);
-        private static readonly Color RingTint = new Color(0.45f, 0.85f, 1f, 1f);
+        /// <summary>The star marker's size on screen, from the theme.</summary>
+        public static float StarPixels => Theme.Map.StarPixels;
 
         private sealed class Marker
         {
@@ -44,6 +38,7 @@ namespace SpaceTrade.Game.Map
             Clear();
             Galaxy = galaxy;
             _camera = camera;
+            var colours = Theme.Colours;
             var min = new Vector2(float.MaxValue, float.MaxValue);
             var max = new Vector2(float.MinValue, float.MinValue);
             foreach (var s in galaxy.Systems)
@@ -58,14 +53,14 @@ namespace SpaceTrade.Game.Map
                 {
                     SystemId = s.Id,
                     Root = root,
-                    Glow = MakeSprite(root, "Glow", "Map/star_glow", GlowTint, 1),
-                    Star = MakeSprite(root, "Star", "Map/star", StarTint, 2),
+                    Glow = MakeSprite(root, "Glow", "Map/star_glow", colours.StarGlow, 1),
+                    Star = MakeSprite(root, "Star", "Map/star", colours.Star, 2),
                 };
-                if (s.HasShipyard) m.Badge = MakeSprite(root, "Shipyard", "Map/shipyard_badge", BadgeTint, 3);
+                if (s.HasShipyard) m.Badge = MakeSprite(root, "Shipyard", "Map/shipyard_badge", colours.ShipyardBadge, 3);
                 _markers.Add(m);
             }
             WorldBounds = Rect.MinMaxRect(min.x, min.y, max.x, max.y);
-            _ring = MakeSprite(transform, "Selection", "Map/selection_ring", RingTint, 4);
+            _ring = MakeSprite(transform, "Selection", "Map/selection_ring", colours.SystemRing, 4);
             _ring.enabled = false;
             Select(-1);
         }
@@ -99,17 +94,18 @@ namespace SpaceTrade.Game.Map
         {
             if (_camera == null) return;
             float unitsPerPixel = 2f * _camera.orthographicSize / Mathf.Max(1, _camera.pixelHeight);
+            var map = Theme.Map;
             foreach (var m in _markers)
             {
-                SetPixelSize(m.Star, StarPixels, unitsPerPixel);
-                SetPixelSize(m.Glow, GlowPixels, unitsPerPixel);
+                SetPixelSize(m.Star, map.StarPixels, unitsPerPixel);
+                SetPixelSize(m.Glow, map.StarGlowPixels, unitsPerPixel);
                 if (m.Badge != null)
                 {
-                    SetPixelSize(m.Badge, BadgePixels, unitsPerPixel);
-                    m.Badge.transform.localPosition = new Vector3(0.55f, 0.55f, 0f) * StarPixels * unitsPerPixel;
+                    SetPixelSize(m.Badge, map.ShipyardBadgePixels, unitsPerPixel);
+                    m.Badge.transform.localPosition = new Vector3(map.ShipyardBadgeOffset, map.ShipyardBadgeOffset, 0f) * map.StarPixels * unitsPerPixel;
                 }
             }
-            if (_ring != null) SetPixelSize(_ring, RingPixels, unitsPerPixel);
+            if (_ring != null) SetPixelSize(_ring, map.SelectionRingPixels, unitsPerPixel);
         }
 
         private static void SetPixelSize(SpriteRenderer r, float pixels, float unitsPerPixel)

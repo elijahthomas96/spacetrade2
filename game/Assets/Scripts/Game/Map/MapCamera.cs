@@ -1,3 +1,4 @@
+using SpaceTrade.Game.Theming;
 using UnityEngine;
 
 namespace SpaceTrade.Game.Map
@@ -9,13 +10,14 @@ namespace SpaceTrade.Game.Map
     [RequireComponent(typeof(Camera))]
     public sealed class MapCamera : MonoBehaviour
     {
+        // All four come from the theme's "controls" section.
         /// <summary>The closest zoom: half the visible height, in light-years.</summary>
-        public const float MinHalfHeightLy = 1.5f;
+        public static float MinHalfHeightLy => Theme.Controls.ClosestZoomHalfHeightLy;
         /// <summary>Room left around the galaxy at the widest zoom, as a share of its size, plus a fixed margin in light-years.</summary>
-        public const float FitMarginShare = 0.12f;
-        public const float FitMarginLy = 1.5f;
+        public static float FitMarginShare => Theme.Controls.FitMarginPercent / 100f;
+        public static float FitMarginLy => Theme.Controls.FitMarginLy;
         /// <summary>How far past the outermost systems the centre of the view may go, in light-years.</summary>
-        public const float PanMarginLy = 3f;
+        public static float PanMarginLy => Theme.Controls.PanMarginLy;
 
         private Camera _camera;
         private Rect _bounds;

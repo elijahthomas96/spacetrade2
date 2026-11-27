@@ -1,6 +1,8 @@
 # spacetrade2: audio checklist
 
-24 sounds: 20 short effects, 4 loops. The agent wires every one to a silent placeholder, so none of this blocks the build. Your file replaces the placeholder when it has the same name in the same folder.
+24 sounds: 20 short effects, 4 loops. All 24 files are in place and are your real audio; since session 13 the game plays them as they are. A file with the same name in the same folder replaces the one there. A silent stand-in is made only if a file goes missing.
+
+How they play (session 13): once per event, never once per frame; the same sound asked for twice in one frame plays once; only the more specific sound plays (pause without `click`, dispatch without `provision`), except that a paid arrival plays `arrival` and `payment` together. During an offline catch-up or a debug skip no event sound plays; `return_summary` plays once at the end.
 
 ## How to make them
 
@@ -8,7 +10,7 @@
 - **Loops:** OGG, 48 kHz, stereo, cut so the end joins the start with no click.
 - Leave no silence at the start of an effect, or it will feel late.
 - Keep loudness consistent across effects. The game has separate effects and music volume sliders, so do not try to balance music against effects in the files.
-- Save into `D:\dev\spacetrade2\game\Assets\Audio\` in the folder shown for each section, using the exact filename. Overwrite the placeholder. Do not rename files.
+- Save into `D:\dev\spacetrade2\game\Assets\Audio\` in the folder shown for each section, using the exact filename. Overwrite the file that is there. Do not rename files.
 - Lengths are targets, not hard limits.
 
 **If you only make three:** `arrival.wav`, `blocked.wav`, and `click.wav`.
@@ -74,7 +76,7 @@ Folder: `game\Assets\Audio\Events\` (10 files)
 | `provision.wav` | Supplies are bought | WAV, mono | Under 1 s |
 | `purchase_ship.wav` | A ship is bought | WAV, mono | Under 2 s |
 | `drive_install.wav` | A drive upgrade is installed | WAV, mono | Under 2 s |
-| `return_summary.wav` | The "while you were away" summary opens | WAV, mono | Under 2 s |
+| `return_summary.wav` | The "while you were away" summary opens. Also plays once, in place of every arrival and other event sound, at the end of an offline catch-up or a debug skip | WAV, mono | Under 2 s |
 | `insystem_income.wav` | In-system transport pays its daily income (very subtle; may stay silent) | WAV, mono | Under 0.5 s |
 
 ## 4. Loops

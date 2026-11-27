@@ -2,6 +2,8 @@ using System.Collections;
 using System.Linq;
 using NUnit.Framework;
 using SpaceTrade.Game.Art;
+using SpaceTrade.Game.Audio;
+using SpaceTrade.Game.Settings;
 using SpaceTrade.Game.Boot;
 using SpaceTrade.Game.Map;
 using SpaceTrade.Sim;
@@ -25,8 +27,22 @@ namespace SpaceTrade.Game.Tests
             public long NowMicroseconds { get; set; } = 1_000_000;
         }
 
-        private GameObject _cameraObject, _runnerObject;
-        private bool _settingsChanged;
+        private GameObject _cameraObject, _runnerObject, _audioObject;
+        private bool _settingsChanged, _listenerChanged;
+        private float _oldListenerVolume;
+
+        /// <summary>The sound player, with every volume at 100 unless <see cref="StartSettings"/> says otherwise.</summary>
+        public GameAudio Audio { get; private set; }
+        public GameSettings Settings { get; private set; }
+
+        /// <summary>A settings file in a temporary test folder, never the player's real one.</summary>
+        public SettingsStore SettingsStore { get; private set; }
+
+        /// <summary>Set before opening to start with other settings.</summary>
+        public GameSettings StartSettings { get; set; }
+
+        /// <summary>Set before opening to keep whatever theme the test has put in place instead of loading the fixture.</summary>
+        public bool KeepTheme { get; set; }
         private InputSettings.BackgroundBehavior _oldBackground;
         private InputSettings.EditorInputBehaviorInPlayMode _oldEditorBehavior;
 
@@ -50,7 +66,16 @@ namespace SpaceTrade.Game.Tests
         public void Build(Simulation sim, bool fakeTime = true)
         {
             ArtLibrary.Load(Resources.Load<ArtCatalog>(ArtCatalog.ResourceName));
+            if (!KeepTheme) GameTestTheme.Use();
             Sim = sim;
+            // The real sounds are started exactly as in the game, but the test run itself is kept silent at the speakers.
+            _oldListenerVolume = AudioListener.volume;
+            AudioListener.volume = 0f;
+            _listenerChanged = true;
+            SettingsStore = new SettingsStore(GameTestSettings.NewPath());
+            Settings = StartSettings ?? new GameSettings { MasterVolume = 100, EffectsVolume = 100, MusicVolume = 100 };
+            _audioObject = new GameObject("Test Audio Root");
+            Audio = GameAudio.Create(_audioObject.transform, Settings);
             _cameraObject = new GameObject("Test Camera");
             var cam = _cameraObject.AddComponent<Camera>();
             cam.orthographic = true;
@@ -60,6 +85,8 @@ namespace SpaceTrade.Game.Tests
             Runner.Run(sim, fakeTime ? Time : null);
             var watch = System.Diagnostics.Stopwatch.StartNew();
             Map = MapScreen.Create(cam);
+            Map.Runner = Runner;
+            Map.SettingsStore = SettingsStore;
             Map.Show(sim, new string[0], null);
             MapBuildMs = watch.Elapsed.TotalMilliseconds;
 
@@ -88,7 +115,11 @@ namespace SpaceTrade.Game.Tests
             if (Map != null) Object.Destroy(Map.gameObject);
             if (_cameraObject != null) Object.Destroy(_cameraObject);
             if (_runnerObject != null) Object.Destroy(_runnerObject);
+            if (_audioObject != null) Object.Destroy(_audioObject);
+            if (_listenerChanged) AudioListener.volume = _oldListenerVolume;
+            if (SettingsStore != null) GameTestSettings.Remove(SettingsStore.Path);
             Mouse = null; Keyboard = null; _settingsChanged = false; Map = null; _cameraObject = null; _runnerObject = null;
+            _audioObject = null; _listenerChanged = false; Audio = null; SettingsStore = null;
         }
 
         /// <summary>Two frames, so the map has placed the ships for the latest tick.</summary>

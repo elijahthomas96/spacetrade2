@@ -21,6 +21,16 @@ namespace SpaceTrade.Sim
             return $"{sign}{whole}.{frac.ToString("000", CultureInfo.InvariantCulture).TrimEnd('0')} {unit}";
         }
 
+        /// <summary>Whole real seconds as "2 h 05 min 07 s", "5 min 07 s", or "7 s".</summary>
+        public static string RealDuration(long seconds)
+        {
+            if (seconds < 0) seconds = 0;
+            long h = seconds / 3600, m = seconds / 60 % 60, s = seconds % 60;
+            if (h > 0) return string.Format(CultureInfo.InvariantCulture, "{0} h {1:00} min {2:00} s", h, m, s);
+            if (m > 0) return string.Format(CultureInfo.InvariantCulture, "{0} min {1:00} s", m, s);
+            return string.Format(CultureInfo.InvariantCulture, "{0} s", s);
+        }
+
         /// <summary>Credits with thousands separators: 43733 gives "43,733".</summary>
         public static string Credits(long credits) => credits.ToString("N0", CultureInfo.InvariantCulture);
     }

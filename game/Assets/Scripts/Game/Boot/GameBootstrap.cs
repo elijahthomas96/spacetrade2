@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using SpaceTrade.Game.Audio;
 using SpaceTrade.Game.Map;
+using SpaceTrade.Game.Settings;
+using SpaceTrade.Game.Theming;
 using SpaceTrade.Sim;
 using SpaceTrade.Sim.Tuning;
 using UnityEngine;
@@ -30,18 +33,48 @@ namespace SpaceTrade.Game.Boot
         [Tooltip("Editor and Development Builds only. Puts one more ship on a three-stop route and pauses it.")]
         [SerializeField] private bool debugPausedRoute;
 
+        [Tooltip("Editor and Development Builds only. Starts the game with debug permission, so the debug skip (spec 13) is allowed.")]
+        [SerializeField] private bool debugMode;
+
+        [Tooltip("Editor and Development Builds only. Writes one console line for every sound event as it fires.")]
+        [SerializeField] private bool debugLogSounds;
+
         public SimulationRunner Runner { get; private set; }
         public MapScreen Map { get; private set; }
+        public GameAudio Audio { get; private set; }
+        public SettingsStore SettingsStore { get; private set; }
         public long SeedUsed { get; private set; }
+
+        /// <summary>Problems found in theme.json at startup. Empty when the file was used.</summary>
+        public IReadOnlyList<string> ThemeProblems { get; private set; } = new string[0];
 
         /// <summary>The last new game's one-off work: creating the game, and building the map for it (real milliseconds).</summary>
         public double LastNewGameMs { get; private set; }
         public double LastMapBuildMs { get; private set; }
 
+        /// <summary>The player's settings file: beside the saves folder, never inside a save.</summary>
+        public static string SettingsPath => Path.Combine(Application.persistentDataPath, SettingsStore.FileName);
+
         private void Start()
         {
+            // The look and the controls are read before any screen is built.
+            var theme = Theme.LoadFile(Path.Combine(Application.streamingAssetsPath, Theme.FileName));
+            if (theme.UsedDefaults)
+            {
+                var problems = new List<string> { "theme.json has problems, so the built-in look and controls are used:" };
+                problems.AddRange(theme.Errors);
+                ThemeProblems = problems;
+            }
+
+            SettingsStore = new SettingsStore(SettingsPath);
+            var settings = SettingsStore.Load();
+            if (SettingsStore.LastProblem != null) _startupMessages.Add(SettingsStore.LastProblem);
+            Audio = GameAudio.Create(transform, settings);
+
             Runner = gameObject.AddComponent<SimulationRunner>();
             Map = MapScreen.Create(Camera.main);
+            Map.Runner = Runner;
+            Map.SettingsStore = SettingsStore;
             int count = 0, inFlight = 0, docked = 0;
             long seed = 0;
             bool pausedRoute = false;
@@ -52,12 +85,18 @@ namespace SpaceTrade.Game.Boot
             inFlight = debugShipsInFlight;
             docked = debugShipsDocked;
             pausedRoute = debugPausedRoute;
+            Audio.LogEvents = debugLogSounds;
 #endif
             NewGameNow(count, seed, inFlight, docked, pausedRoute);
         }
 
+        private readonly List<string> _startupMessages = new List<string>();
+
 #if DEBUG
         public FrameTimeProbe Probe { get; private set; }
+
+        /// <summary>Debug only: the next new game is started with debug permission, so the debug skip is allowed.</summary>
+        public bool DebugMode { get => debugMode; set => debugMode = value; }
 
         /// <summary>Debug setup work after the last new game (buying and sending the debug fleet), real milliseconds.</summary>
         public double LastDebugFleetMs { get; private set; }
@@ -73,21 +112,40 @@ namespace SpaceTrade.Game.Boot
         public string FrameCheckReport { get; private set; }
 
         /// <summary>Debug only: a new game with this many systems and ships in flight, then the map frame-time scenario at 1x, 3x, and 5x.</summary>
-        public void StartFrameCheck(int systemCount, int shipsInFlight, float secondsPerSpeed)
+        public void StartFrameCheck(int systemCount, int shipsInFlight, float secondsPerSpeed, bool fullNotificationList = false, long seed = 0)
         {
             FrameCheckRunning = true;
             FrameCheckReport = null;
-            StartCoroutine(FrameCheck(systemCount, shipsInFlight, secondsPerSpeed));
+            StartCoroutine(FrameCheck(systemCount, shipsInFlight, secondsPerSpeed, fullNotificationList, seed));
         }
 
-        private System.Collections.IEnumerator FrameCheck(int systemCount, int shipsInFlight, float secondsPerSpeed)
+        private System.Collections.IEnumerator FrameCheck(int systemCount, int shipsInFlight, float secondsPerSpeed, bool fullNotificationList, long seed)
         {
             Probe.ClearAll();
             yield return null;
-            NewGameNow(systemCount, 0, shipsInFlight, 0, false);
+            NewGameNow(systemCount, seed, shipsInFlight, 0, false);
             yield return null;
             yield return null;
+            if (fullNotificationList)
+            {
+                // Filling the list is debug setup, not something a player's game ever does in one frame, so it has a frame
+                // of its own and is reported apart from the one-off frames the 250 ms limit is about. It moves the
+                // simulation's time, so it is declared as a time jump like every other skip.
+                var watch = Stopwatch.StartNew();
+                Runner.BeginTimeJump();
+                DebugFleet.FillNotifications(Runner.Simulation);
+                Runner.EndTimeJump();
+                Probe.MarkOneOff("debug setup only: filling the notification list", watch.Elapsed.TotalMilliseconds);
+                yield return null;
+                yield return null;
+            }
             string prefix = $"{systemCount} systems, {Runner.Simulation.Ships.Count} ships ({InFlight()} in flight)";
+            if (fullNotificationList)
+            {
+                prefix += $", {Runner.Simulation.Notifications.Count} notifications with the list open";
+                if (!Map.Bar.Notifications.IsOpen) Map.Bar.ToggleNotifications();
+                yield return null;
+            }
             yield return MapFrameCheck.Run(Map, Runner.Driver, Probe, secondsPerSpeed, prefix);
             FrameCheckReport = Probe.Report();
             FrameCheckRunning = false;
@@ -104,7 +162,12 @@ namespace SpaceTrade.Game.Boot
         private void NewGameNow(int systemCount, long seed, int shipsInFlight, int shipsDocked, bool pausedRoute)
         {
             var watch = Stopwatch.StartNew();
-            var messages = new List<string>();
+            var messages = new List<string>(ThemeProblems);
+            messages.AddRange(_startupMessages);
+            SpaceTrade.Sim.DebugCapability debug = null;
+#if DEBUG
+            if (debugMode) debug = SpaceTrade.Sim.DebugCapability.Grant();
+#endif
             var load = TuningLoader.LoadFile(Path.Combine(Application.streamingAssetsPath, "tuning.json"));
             if (load.UsedDefaults)
             {
@@ -119,10 +182,10 @@ namespace SpaceTrade.Game.Boot
 #endif
 
             NewGameResult game;
-            if (systemCount > 0) game = CreateSized(tuning, systemCount, seed);
+            if (systemCount > 0) game = CreateSized(tuning, systemCount, seed, debug);
             else
             {
-                game = NewGame.Create(seed, tuning);
+                game = NewGame.Create(seed, tuning, debug);
                 if (game.UsedDefaults)
                 {
                     messages.Add("This new game could not be built from tuning.json, so the built-in defaults are used:");
@@ -160,7 +223,7 @@ namespace SpaceTrade.Game.Boot
         /// Debug only: tuning.json with exactly <paramref name="systemCount"/> systems, adding "System 013" and so on when
         /// the name list is too short. Seeds that cannot meet the new-game guarantees are skipped.
         /// </summary>
-        private static NewGameResult CreateSized(TuningData tuning, int systemCount, long seed)
+        private static NewGameResult CreateSized(TuningData tuning, int systemCount, long seed, SpaceTrade.Sim.DebugCapability debug)
         {
             tuning.Galaxy.SystemCountMin = systemCount;
             tuning.Galaxy.SystemCountMax = systemCount;
@@ -170,7 +233,7 @@ namespace SpaceTrade.Game.Boot
             NewGameResult game = null;
             for (int i = 0; i < 100; i++)
             {
-                game = NewGame.Create(seed + i, tuning);
+                game = NewGame.Create(seed + i, tuning, debug);
                 if (!game.UsedDefaults) return game;
             }
             return game;

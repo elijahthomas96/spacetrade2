@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using SpaceTrade.Game.Art;
+using SpaceTrade.Game.Theming;
 using SpaceTrade.Sim;
 using UnityEngine;
 
@@ -25,11 +26,8 @@ namespace SpaceTrade.Game.Map
     /// </summary>
     public sealed class RouteLinesView : MonoBehaviour
     {
-        public const float ArrowPixels = 13f;
-        /// <summary>How far along a leg its arrow sits, so the two directions of a shared line keep their arrows apart.</summary>
-        public const float ArrowAlong = 0.6f;
-
-        private static readonly Color LineColour = new Color(0.45f, 0.85f, 1f, 1f);
+        /// <summary>How far along a leg its arrow sits (from the theme), so the two directions of a shared line keep their arrows apart.</summary>
+        public static float ArrowAlong => Theme.Routes.ArrowAlong;
 
         private Simulation _sim;
         private Camera _camera;
@@ -44,16 +42,21 @@ namespace SpaceTrade.Game.Map
 
         public static float Alpha(RouteLineStyle style)
         {
+            var t = Theme.Routes;
             switch (style)
             {
-                case RouteLineStyle.PausedRoute: return 0.2f;
-                case RouteLineStyle.Route: return 0.35f;
-                case RouteLineStyle.CurrentLeg: return 0.55f;
-                default: return 0.95f;
+                case RouteLineStyle.PausedRoute: return t.PausedRouteAlpha;
+                case RouteLineStyle.Route: return t.RouteAlpha;
+                case RouteLineStyle.CurrentLeg: return t.CurrentLegAlpha;
+                default: return t.SelectedAlpha;
             }
         }
 
-        public static float WidthPixels(RouteLineStyle style) => style == RouteLineStyle.Selected ? 2.5f : style == RouteLineStyle.CurrentLeg ? 2f : 1.5f;
+        public static float WidthPixels(RouteLineStyle style)
+        {
+            var t = Theme.Routes;
+            return style == RouteLineStyle.Selected ? t.SelectedWidth : style == RouteLineStyle.CurrentLeg ? t.CurrentLegWidth : t.RouteWidth;
+        }
 
         public void Build(Simulation sim, Camera camera)
         {
@@ -62,9 +65,10 @@ namespace SpaceTrade.Game.Map
             if (_lineTexture == null)
             {
                 _lineTexture = new Texture2D(4, 4, TextureFormat.RGBA32, false) { name = "Route line", wrapMode = TextureWrapMode.Clamp };
-                var white = new Color32[16];
-                for (int i = 0; i < white.Length; i++) white[i] = new Color32(255, 255, 255, 255);
-                _lineTexture.SetPixels32(white);
+                // A plain white square: the line's colour comes from the theme as the sprite's tint.
+                var white = new Color[16];
+                for (int i = 0; i < white.Length; i++) white[i] = Color.white;
+                _lineTexture.SetPixels(white);
                 _lineTexture.Apply(false, true);
                 _lineSprite = Sprite.Create(_lineTexture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 4);
                 _lineSprite.name = "Route line";
@@ -107,7 +111,8 @@ namespace SpaceTrade.Game.Map
                 Vector2 b = GalaxyMapView.WorldPosition(systems[seg.To]);
                 Vector2 d = b - a;
                 float angle = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
-                var colour = new Color(LineColour.r, LineColour.g, LineColour.b, Alpha(seg.Style));
+                Color colour = Theme.Colours.RouteLine;
+                colour.a = Alpha(seg.Style);
                 line.gameObject.SetActive(true);
                 line.color = colour;
                 line.transform.localPosition = (a + b) / 2f;
@@ -118,7 +123,7 @@ namespace SpaceTrade.Game.Map
                 arrow.transform.localPosition = a + d * ArrowAlong;
                 arrow.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
                 float arrowWidth = arrow.sprite.bounds.size.x;
-                if (arrowWidth > 0f) arrow.transform.localScale = Vector3.one * (ArrowPixels * upp / arrowWidth);
+                if (arrowWidth > 0f) arrow.transform.localScale = Vector3.one * (Theme.Routes.ArrowPixels * upp / arrowWidth);
             }
             for (int i = _segments.Count; i < _pool.Count; i++)
             {

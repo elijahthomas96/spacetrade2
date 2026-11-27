@@ -289,6 +289,19 @@ namespace SpaceTrade.Sim
             return new ShipPosition(ship.Id, v, systems[v.OriginId], systems[v.DestinationId], CurrentTick);
         }
 
+        /// <summary>
+        /// When a ship arrives, for display only (spec 3.4): the arrival date and the real time left at the current speed,
+        /// frozen while paused. Every ETA on screen is this figure. Never stored; changes nothing.
+        /// </summary>
+        public VoyageEta EtaOf(int shipId)
+        {
+            var ship = FindShip(shipId) ?? throw new ArgumentException($"There is no ship with id {shipId}.", nameof(shipId));
+            return ship.Voyage == null ? new VoyageEta(ship.Id, Clock) : new VoyageEta(ship.Id, ship.Voyage, Clock);
+        }
+
+        /// <summary>The in-game date now (spec 3.1).</summary>
+        public GameDate CurrentDate => GameDate.FromTick(CurrentTick);
+
         /// <summary>Every stored value in a fixed text layout: clock, credits, ships and voyages, receipts, events, and market.</summary>
         public string DescribeState()
         {

@@ -21,6 +21,7 @@ namespace SpaceTrade.Game.Tests
         private static readonly string[] FixedData =
         {
             "SpaceTrade.Game.Art.ArtManifest.All",
+            "SpaceTrade.Game.Audio.SoundManifest.All",
         };
 
         private static bool IsImmutable(Type t) =>

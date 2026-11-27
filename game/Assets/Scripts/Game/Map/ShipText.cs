@@ -1,7 +1,6 @@
 using System.Globalization;
 using SpaceTrade.Sim;
 using SpaceTrade.Sim.Ships;
-using SpaceTrade.Sim.Timing;
 using SpaceTrade.Sim.Voyages;
 
 namespace SpaceTrade.Game.Map
@@ -29,24 +28,8 @@ namespace SpaceTrade.Game.Map
                 : $"{Percent(p.ProgressHundredthsOfPercent)} (docked at {SystemName(sim, p.DockedSystemId.Value)})";
 
         /// <summary>The in-game arrival date and the real time left at the current speed, or "Paused" (spec 3.4).</summary>
-        public static string Eta(Simulation sim, ShipPosition p)
-        {
-            if (!p.InTransit) return "Docked";
-            string when = "Arrives " + GameDate.FromTick(p.ArrivalTick);
-            if (sim.Clock.IsPaused) return when + " · Paused";
-            long ms = GameTime.RealMillisecondsFor(p.ArrivalTick - sim.CurrentTick, sim.Clock.Speed);
-            return $"{when} · {RealTime(ms)} at {ClockSpeeds.Multiplier(sim.Clock.Speed)}x";
-        }
-
-        /// <summary>Real milliseconds as "2 h 05 min 07 s", with seconds rounded up so it never reaches zero early.</summary>
-        public static string RealTime(long ms)
-        {
-            long s = (ms + 999) / 1000;
-            long h = s / 3600, m = s / 60 % 60, sec = s % 60;
-            if (h > 0) return $"{h} h {m:00} min {sec:00} s";
-            if (m > 0) return $"{m} min {sec:00} s";
-            return $"{sec} s";
-        }
+        /// The simulation works both out (<see cref="Simulation.EtaOf"/>); the screen only shows its words.
+        public static string Eta(Simulation sim, int shipId) => sim.EtaOf(shipId).Describe();
 
         public static string Kg(long kg) => kg.ToString("N0", Invariant) + " kg";
 

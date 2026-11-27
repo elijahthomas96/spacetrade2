@@ -27,6 +27,7 @@ namespace SpaceTrade.Game.EditorTests
         private static string FixturePath => Path.Combine(Application.dataPath, "Tests", "EditMode", "Fixtures", "test-tuning.json");
 
         private SceneSetup[] _scenes;
+        private float? _listenerVolume;
 
         [UnitySetUp]
         public IEnumerator KeepTheOpenScenes()
@@ -42,6 +43,8 @@ namespace SpaceTrade.Game.EditorTests
         public IEnumerator RestoreTheOpenScenes()
         {
             if (EditorApplication.isPlaying) yield return new ExitPlayMode();
+            if (_listenerVolume.HasValue) AudioListener.volume = _listenerVolume.Value;
+            _listenerVolume = null;
             if (_scenes != null && _scenes.Length > 0) EditorSceneManager.RestoreSceneManagerSetup(_scenes);
             _scenes = null;
         }
@@ -117,6 +120,79 @@ namespace SpaceTrade.Game.EditorTests
                 else Assert.AreNotSame(firstStandIn, standIn, "the second session made its own stand-in");
 
                 sessions.Add($"session {session}: {sim.Ships.Count} ships, tick {sim.CurrentTick}, {map.Routes.Segments.Count} legs drawn, close-up opened and closed");
+                LogAssert.NoUnexpectedReceived();
+                yield return new ExitPlayMode();
+                Assert.IsFalse(EditorApplication.isPlaying);
+            }
+            TestContext.WriteLine(string.Join("\n", sessions));
+        }
+
+        /// <summary>
+        /// Session 13: the theme, the sound player, and the bar keep nothing from the Play session before. The first
+        /// session uses a changed theme and plays sounds; the second must start on the built-in theme with no sound player
+        /// and fresh counts.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheThemeTheSoundPlayerAndTheBar_StartFresh_InASecondPlaySession()
+        {
+            var sessions = new List<string>();
+            float defaultBarHeight = new SpaceTrade.Game.Theming.GameTheme().TopBar.Height;
+            for (int session = 1; session <= 2; session++)
+            {
+                yield return new EnterPlayMode();
+                Assert.IsTrue(EditorApplication.isPlaying);
+                if (!_listenerVolume.HasValue) _listenerVolume = AudioListener.volume;
+                AudioListener.volume = 0f; // the run stays silent at the speakers; the game's own volumes are untouched
+
+                Assert.IsNull(SpaceTrade.Game.Audio.GameAudio.Current, $"session {session}: no sound player is left over");
+                Assert.AreEqual(defaultBarHeight, SpaceTrade.Game.Theming.Theme.TopBar.Height, $"session {session}: the theme starts as the built-in one");
+                CollectionAssert.IsEmpty(SpaceTrade.Game.Theming.Theme.Errors);
+                if (session == 1)
+                {
+                    var changed = new SpaceTrade.Game.Theming.GameTheme();
+                    changed.TopBar.Height = defaultBarHeight + 21;
+                    SpaceTrade.Game.Theming.Theme.Use(changed);
+                }
+                float expectedHeight = session == 1 ? defaultBarHeight + 21 : defaultBarHeight;
+
+                var cameraObject = new GameObject("Session Camera");
+                var cam = cameraObject.AddComponent<Camera>();
+                cam.orthographic = true;
+                cam.transform.position = new Vector3(0, 0, -10);
+                var settings = new SpaceTrade.Game.Settings.GameSettings { MasterVolume = 100, EffectsVolume = 100, MusicVolume = 100 };
+                var audio = SpaceTrade.Game.Audio.GameAudio.Create(null, settings);
+                var sim = NewFixtureGame();
+                var starter = sim.Ships[0];
+                int to = sim.Market.Galaxy.Systems.Where(s => s.Id != starter.DockedSystemId).OrderBy(s => sim.Market.Galaxy.DistanceMilliLy(starter.DockedSystemId.Value, s.Id)).First().Id;
+                Assert.IsTrue(sim.Play().Succeeded, "a new game starts paused; this one runs");
+                var runnerObject = new GameObject("Session Runner");
+                var runner = runnerObject.AddComponent<SimulationRunner>();
+                runner.Run(sim);
+                var map = MapScreen.Create(cam);
+                map.Runner = runner;
+                map.Show(sim, new string[0], null);
+                for (int i = 0; i < 3; i++) yield return null;
+
+                Assert.AreEqual(expectedHeight, map.Bar.BarRect.height, 0.5f, $"session {session}: the bar is built from this session's theme");
+                Assert.AreEqual(sim.CurrentDate.ToString(), map.Bar.DateText, $"session {session}: the bar shows the date");
+                Assert.AreEqual(SpaceTrade.Game.Audio.SoundId.MusicMap, audio.Music, $"session {session}: the map music loop is on");
+                Assert.IsNotNull(audio.ClipOf(SpaceTrade.Game.Audio.SoundId.Arrival), $"session {session}: the arrival clip is loaded");
+                Assert.AreEqual(0, audio.StartedTotal, $"session {session}: no sound counts carried over");
+
+                Assert.IsTrue(runner.Command(s => s.Dispatch(new VoyagePlan(starter.Id, to), true)).Succeeded);
+                for (int i = 0; i < 2; i++) yield return null;
+                map.Bar.TogglePause();
+                for (int i = 0; i < 2; i++) yield return null;
+                Assert.IsTrue(sim.Clock.IsPaused);
+                Assert.IsTrue(map.Bar.ShowsPaused);
+                Assert.AreEqual(1, audio.StartedCount(SpaceTrade.Game.Audio.SoundId.Dispatch), $"session {session}: one dispatch sound");
+                Assert.AreEqual(1, audio.StartedCount(SpaceTrade.Game.Audio.SoundId.Pause), $"session {session}: one pause sound");
+                Assert.AreEqual(2, audio.StartedTotal, $"session {session}: and no others");
+                map.Bar.ToggleNotifications();
+                for (int i = 0; i < 2; i++) yield return null;
+                Assert.IsTrue(map.Bar.Notifications.IsOpen);
+
+                sessions.Add($"session {session}: bar height {map.Bar.BarRect.height}, date {map.Bar.DateText}, {audio.StartedTotal} sounds started, music {audio.Music}");
                 LogAssert.NoUnexpectedReceived();
                 yield return new ExitPlayMode();
                 Assert.IsFalse(EditorApplication.isPlaying);

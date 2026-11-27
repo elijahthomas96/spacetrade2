@@ -22,8 +22,9 @@ namespace SpaceTrade.Game.Map
         public void Build(Camera camera)
         {
             _camera = camera;
-            _stars = MakeLayer("Starfield", "Map/starfield", -100, 1f, 0.012f);
-            _nebula = MakeLayer("Nebula", "Map/nebula_overlay", -90, 1.6f, 0.006f);
+            var t = SpaceTrade.Game.Theming.Theme.Background;
+            _stars = MakeLayer("Starfield", "Map/starfield", -100, t.StarfieldTileScreens, t.StarfieldDriftTilesPerLy);
+            _nebula = MakeLayer("Nebula", "Map/nebula_overlay", -90, t.NebulaTileScreens, t.NebulaDriftTilesPerLy);
         }
 
         private Layer MakeLayer(string name, string key, int order, float tileScreens, float drift)

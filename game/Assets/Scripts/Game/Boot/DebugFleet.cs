@@ -83,6 +83,32 @@ namespace SpaceTrade.Game.Boot
             return problems;
         }
 
+        /// <summary>
+        /// Fills the notification list to its limit for checking the screen with a full list: every ship in flight is taken
+        /// to its arrival through the normal Advance and sent out again on an empty voyage, until the list is full. The
+        /// fleet ends in flight. Returns how many notifications there are.
+        /// </summary>
+        public static int FillNotifications(Simulation sim)
+        {
+            int keep = sim.Market.Tuning.Notifications.KeepNewest;
+            var galaxy = sim.Market.Galaxy;
+            for (int round = 0; round < 50 && sim.Notifications.Count < keep; round++)
+            {
+                long latest = -1;
+                foreach (var ship in sim.Ships) if (ship.Voyage != null) latest = System.Math.Max(latest, ship.Voyage.ArrivalTick);
+                if (latest < 0) break;
+                sim.Advance(latest);
+                foreach (var ship in sim.Ships.ToList())
+                {
+                    if (ship.Voyage != null || ship.Route != null || !ship.DockedSystemId.HasValue) continue;
+                    int from = ship.DockedSystemId.Value;
+                    foreach (var to in galaxy.Systems.Where(s => s.Id != from).OrderBy(s => galaxy.DistanceMilliLy(from, s.Id)).Select(s => s.Id))
+                        if (sim.Dispatch(new VoyagePlan(ship.Id, to), true).Succeeded) break;
+                }
+            }
+            return sim.Notifications.Count;
+        }
+
         private static bool Check(CommandResult result, string what, List<string> problems)
         {
             if (!result.Succeeded) problems.Add(what + ": " + result.Reason);

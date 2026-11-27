@@ -120,8 +120,9 @@ Rules that apply to every session (also in `AGENTS.md`):
 ### Session 13: top bar, notifications, sound
 
 - Date, pause/play, the three speed buttons, credits, both ETA displays, notification list with click-to-jump (spec 9.4, 3.4).
-- Audio system: one named event per row in `eli-tasks.md` section 4, a silent placeholder file for each, volume sliders and mute in settings.
-- **Done when:** speed changes show on the real-time ETA without changing the arrival date, the countdown freezes when paused, and a debug log line confirms each sound event fires at the right moment.
+- Audio system: one named event per row in `eli-tasks.md` section 4, wired to the owner's real audio files as they are, volume sliders and mute in settings (remembered between runs, not in the save).
+- Theme file (spec 9.7): every look value and every camera or control feel value in `theme.json`, read like `tuning.json`; the map, panels, and close-up moved onto it.
+- **Done when:** speed changes show on the real-time ETA without changing the arrival date, the countdown freezes when paused, and a debug log line confirms each sound event fires at the right moment. Also tested: 1,000 arrivals in one catch-up produce no burst of sounds; clicking a notification selects and centres its ship, including one that has since moved; mute and each slider at zero silence their group; the frame-time rule holds at 50 systems with 50 ships and a full notification list; theme errors name the field and the line and fall back to the defaults.
 
 ### Session 14: system view, planner, receipt
 
@@ -143,6 +144,7 @@ Rules that apply to every session (also in `AGENTS.md`):
 
 - Title screen, new game, load, save slots, load demo, settings, quit. Offline return summary panel. Debug skip button shown only under the rules in spec 13.
 - Saving, autosave, and offline catch-up are wired to the screen here (session 11 runs an unsaved game in memory). The screen must not freeze: open saves with `GameSession.BeginOpen`, run the catch-up in slices with a progress percentage on screen, and keep autosaves from stalling a frame. If an autosave takes longer than the limit below, writing the file moves off the drawing step.
+- Sound (owner's decision, session 13): the sliced catch-up must declare itself to the sound system as a time jump, `SimulationRunner.BeginTimeJump()` before its first slice and `EndTimeJump()` after its last, so arrivals during it are silent and the return summary sound plays once. The title screen plays `music_title`. The settings screen uses the session 13 settings file. Open question to settle here: whether a very short absence should play the return summary sound at all.
 - **Done when:** the agent saves mid-transit, stops Play, restarts, and sees a correct return summary; a paused save returns paused; and at 12 and 50 systems no frame during a catch-up or an autosave takes longer than 50 ms, measured and reported. One-off frames (loading a save, building a new game) follow the session 12 rule: they do not count toward the 50 ms, each is reported with its time at 12 and 50 systems, and any one over 250 ms means stop and report it.
 
 ## Phase C: balance, proof, delivery
