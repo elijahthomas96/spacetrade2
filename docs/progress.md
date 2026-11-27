@@ -164,6 +164,21 @@ No ordinary frame came near 50 ms.
 
 The PlayMode test fails if a one-off frame reaches 250 ms or any 1x, 3x, or 5x stretch has script work of 50 ms or more. The largest one-off frame seen at any point in the session was 169.3 ms, the first build after a recompile (code being compiled on first use), still under 250 ms. Opening the game normally (the live file, 8 to 12 systems, no debug fleet) took 1.6 to 2.6 ms for the new game and 0.6 to 0.7 ms for the map.
 
+**One-off frames measured again (main agent, after session 12, 2026-11-26).** The owner was told that the session 12 sub-agent stated one set of one-off new-game frame times in its chat and committed a different set. The new main agent could not find a second set: the sub-agent's final report, as far as it could be read, gives the same figures as the table above. The measurement was therefore run once more, the same way (`Main` scene in Play, Unity window focused, `StartFrameCheck` with 3 seconds per speed, console cleared first). These are the figures the main agent observed itself:
+
+| Case | Seed | New game | Fleet setup (debug) | Map build | Whole frame |
+|---|---|---|---|---|---|
+| 12 systems, 1 ship | 755575914 | 2.7 ms | 1.2 ms | 0.9 ms | 8.1 ms |
+| 12 systems, 50 ships | 755600732 | 3.8 ms | 3.8 ms | 2.7 ms | 13.9 ms |
+| 50 systems, 1 ship | 755622773 | 28.9 ms | under 0.5 ms (not recorded) | 2.1 ms | 35.5 ms |
+| 50 systems, 50 ships | 755644826 | 9.2 ms | 3.2 ms | 4.3 ms | 20.9 ms |
+
+Ordinary frames in the same run: slowest 14.1 ms (50 systems, 50 ships, 5x), slowest script work 7.7 ms, 2,055 to 2,908 frames per 3-second stretch. Console: 0 entries of any type. Opening the game normally in this run took 2.5 ms for the new game and 0.7 ms for the map.
+
+What this shows: the 12-system figures agree with the committed table. The 50-system new-game time does not repeat from run to run (28.9 and 9.2 ms here, against 78.0 and 76.8 ms committed), because each run uses a fresh seed taken from the clock, and how long a 50-system galaxy takes to build depends on the seed (session 10b measured an average of 61 ms and a slowest of 169 ms for a 50-system new game). So neither set is "the" number: the whole one-off frame for a 50-system new game has been seen from 20.9 ms to 169.3 ms, depending on the seed and on whether the code was just recompiled, and every figure recorded is under the 250 ms stop line. The committed table's exact values were not reproduced and cannot be, since its seeds were not recorded. From here on, one-off frame times are reported with their seed.
+
+**Screenshots renamed (main agent, 2026-11-26).** The session 12 screenshots are outside the repository, in `C:\Users\Elijah\.cursor\projects\d-dev-spacetrade2\session12-screenshots\`. Two had the wrong speed in their names and were renamed to match the panel text in the picture: `02-voyage-followed-1x.png` (shows "2 h 46 min 16 s at 3x") is now `02-voyage-followed-3x.png`, and `03-voyage-followed-3x.png` (shows "1 h 39 min 42 s at 5x") is now `03-voyage-followed-5x.png`. `04-voyage-followed-5x.png` (shows "1 h 39 min 37 s at 5x") was already right. There is therefore no screenshot of the followed voyage at 1x; the 1x figures in "Live Play checks" below rest on the values read in that session, not on a picture.
+
 **Live Play checks.** The console was empty (0 entries of any type) through the whole first Play session.
 - The starter ship was selected at start, with its real icon (not a stand-in), and the panel read "Tern / Courier / Docked at Elara / ... / Follow (F)".
 - Test voyage: Tern dispatched on its first freight opening job, Elara to Rhea, 29,932,800 ticks. While following, the camera stayed centred on the ship and the arrival tick stayed 29,932,800 at 1x (tick 5,782, "8 h 18 min 48 s at 1x"), 3x (tick 23,404, "2 h 46 min 10 s at 3x"), and 5x (tick 51,153, "1 h 39 min 37 s at 5x").
@@ -454,9 +469,11 @@ Before session 10c:
 
 Before session 12 (new, session 10c):
 
-7. **Live job distance limit of 14 ly.** It meets every guarantee at 12, 25, and 50 systems and leaves the starter's flyable jobs unchanged, but removes jobs longer than 14 ly that a bulk freighter or liner could fly. This doesn't block session 12 (which draws ships on the map). Choices: keep 14 ly until session 18 (recommended), or raise it now to 17.5 or 21 ly (both also met every guarantee, with longer job lists and slower catch-up).
+7. **Live job distance limit of 14 ly (resolved by the owner, 2026-11-26: keep 14 ly until session 18, which compares 14, 17.5, and 21 ly in the balance harness).** It meets every guarantee at 12, 25, and 50 systems and leaves the starter's flyable jobs unchanged, but removes jobs longer than 14 ly that a bulk freighter or liner could fly. This doesn't block session 12 (which draws ships on the map). Choices: keep 14 ly until session 18 (recommended), or raise it now to 17.5 or 21 ly (both also met every guarantee, with longer job lists and slower catch-up).
 
 Before session 13 (new, session 12):
 
-8. **Docked ship icons above 5.** The cap of 5 icons plus "+N" (condition 4a) is fixed in the drawing code (`ShipMapView.MaxFannedPerStar`), not in tuning, because it is presentation, not economy. A selected docked ship is always one of the 5 drawn. Say if it should be a setting instead.
-9. **Ship names on the map.** Ship icons are drawn without name labels (names show in the panel and close-up when selected), to keep a 50-ship map readable. Say if moving ships should carry their names.
+Questions 8 and 9 were answered by the owner on 2026-11-26, before session 13; the work is in session 13.
+
+8. **Docked ship icons above 5 (answered: the limit becomes a setting in the session 13 theme file, not in `tuning.json`).** The cap of 5 icons plus "+N" (condition 4a) is fixed in the drawing code (`ShipMapView.MaxFannedPerStar`), not in tuning, because it is presentation, not economy. A selected docked ship is always one of the 5 drawn. Say if it should be a setting instead.
+9. **Ship names on the map (answered: a moving ship shows its name only when it is selected or under the mouse).** Ship icons are drawn without name labels (names show in the panel and close-up when selected), to keep a 50-ship map readable. Say if moving ships should carry their names.
