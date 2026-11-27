@@ -41,7 +41,47 @@ The full list, with a checkbox per sound, is in `docs\audio-checklist.md`. 24 so
 
 - [ ] Edit `game\Assets\StreamingAssets\theme.json` in VS Code or Cursor. `docs\theme-guide.md` explains every field in plain language with its unit. Colours, text sizes, spacing, glow sizes, label rules, and display limits are in the look sections; click radius, zoom, and keyboard pan speed are in the `controls` section.
 - [ ] If the game reports a theme error on start, the message names the bad field and the line. The game uses the built-in look and controls until it is fixed.
-- [ ] After session 13: play in the Editor with the sound on and listen to every sound (the agent cannot hear). The agent's session 13 notes in `docs\progress.md` list what to listen for.
+- [ ] After session 13: do the listening check in section 5b (the agent cannot hear).
+
+## 5b. Listening check (after session 13)
+
+The agent can prove the right file started at the right moment and volume, but not how it sounds. In Unity, open the `Main` scene, turn your speakers on, press Play, and click once inside the Game view so the keys work. Settings start at master 80, effects 80, music 60.
+
+**Sounds you can trigger today (12 of the 24):**
+
+| Sound | How to hear it |
+|---|---|
+| `music_map.ogg` | Starts by itself when you press Play. Leave it running past its end (2 to 4 minutes) and listen for a click or gap where it loops |
+| `resume.wav` | Press Space, or the play button in the top bar (the game starts paused) |
+| `pause.wav` | Press Space again, or the pause button |
+| `speed_change.wav` | Press 2 or 3, or click a speed button that is not lit |
+| `click.wav` | Click the speed button that is already lit (1x at the start) |
+| `select.wav` | Click a star, or click the ship |
+| `toggle_on.wav` | With the ship selected, press F or the Follow button |
+| `toggle_off.wav` | Press F again. It also plays when you unmute |
+| `panel_open.wav` | Click the bell (notification list) or the gear (settings) in the top bar |
+| `panel_close.wav` | Click the bell or gear again, or press Esc |
+| `ship_closeup_docked.ogg` | Select the ship (it is selected at the start) and press the Close-up button. The quiet station loop should start, and stop when you leave with Esc |
+| `ship_closeup_drive.ogg` | Needs a ship in flight. Before pressing Play, select the `Game` object in the Hierarchy and set "Debug Ships In Flight" to 1 in the Inspector (under Game Bootstrap). Press Play, open the close-up, and listen for the drive hum. Afterwards stop Play and set the field back to 0; if Unity asks to save the scene, choose Don't Save |
+
+**Sounds with no button yet (12).** They are wired and tested, but the screens that trigger them come later. Check each one after the session shown, or ask the agent to fire them one at a time while you listen.
+
+| Sound | First hearable |
+|---|---|
+| `dispatch.wav`, `provision.wav`, `error.wav` | Session 14 (planner: launch a voyage, buy supplies, try a load that does not fit) |
+| `arrival.wav`, `payment.wav` | Session 14 (a voyage arrives and pays) |
+| `purchase_ship.wav`, `drive_install.wav`, `insystem_income.wav` | Session 15 (shipyard, and the in-system transport toggle, which also plays the two toggle sounds) |
+| `waiting.wav`, `blocked.wav` | Session 16 (routes) |
+| `return_summary.wav`, `music_title.ogg` | Session 17 (return summary and title screen) |
+
+**Mute and sliders.** Open settings with the gear. Keep the map music playing as the reference, and use the bell (open and close) as the test effect.
+
+- [ ] **Mute:** click "Mute all sound". The music stops at once, and the bell, Space, and clicking a star make no sound. Click again to unmute: the music returns and you hear `toggle_off.wav`.
+- [ ] **Master at 0:** drag Master fully left. Music and effects are both silent. Put it back to 80.
+- [ ] **Effects at 0:** the music keeps playing, the bell and Space are silent, and the close-up loop is silent (the two close-up loops belong to effects). Put it back to 80.
+- [ ] **Music at 0:** the music is silent, the bell and Space still sound. Put it back to 60.
+- [ ] **Remembered:** set Music to 30, stop Play, press Play again, and open settings. It should still read 30. Put it back to 60, or leave whatever you prefer.
+- [ ] **Loudness:** note any sound that is too loud, too quiet, late, or cut off, and whether 80 / 80 / 60 are the right starting volumes. Give the list to the agent.
 
 ## 6. Final checks only you can do (session 21)
 
