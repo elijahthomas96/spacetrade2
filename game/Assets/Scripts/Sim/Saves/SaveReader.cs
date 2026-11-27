@@ -201,6 +201,7 @@ namespace SpaceTrade.Sim.Saves
         private static Market ReadMarket(SaveNode m, Galaxy galaxy, TuningData tuning)
         {
             long created = m.Long("createdTick", 0);
+            long jobLimit = m.Long("maxJobDistanceMilliLy", 1);
             var random = ReadRandom(m, "random");
             var yardRandom = ReadRandom(m, "yardRandom");
             bool holds = m.Bool("holdsOpeningRates");
@@ -239,7 +240,7 @@ namespace SpaceTrade.Sim.Saves
                 return yard;
             }).ToList();
             m.Done();
-            return Market.Restore(galaxy, tuning, created, random, yardRandom, holds, supplies, demands, offers, pools, rolls, yards);
+            return Market.Restore(galaxy, tuning, created, random, yardRandom, holds, supplies, demands, offers, pools, rolls, yards, jobLimit);
         }
 
         private static void ReadSupply(SaveNode ship, string name, SupplyStock stock)
@@ -355,6 +356,7 @@ namespace SpaceTrade.Sim.Saves
         private static readonly Dictionary<int, Func<JsonValue, JsonValue>> Steps = new Dictionary<int, Func<JsonValue, JsonValue>>
         {
             [1] = AddDeliveryTotals,
+            [2] = AddJobDistanceLimit,
         };
 
         public static JsonValue Migrate(JsonValue save, int fromVersion)
@@ -385,10 +387,47 @@ namespace SpaceTrade.Sim.Saves
                 if (m.Key == "receipts") gameMembers.Add(new KeyValuePair<string, JsonValue>("deliveryTotals", totals));
                 gameMembers.Add(m);
             }
+            return WithGame(save, 2, gameMembers);
+        }
+
+        /// <summary>
+        /// Format 2 to 3: format 2 had freight offers and passenger pools at any distance, so it gets no limit: the largest
+        /// galaxy.maxJobDistanceMilliLy the tuning file accepts, or the widest distance between two of its systems if that is
+        /// larger. Every job it has stays.
+        /// </summary>
+        private static JsonValue AddJobDistanceLimit(JsonValue save)
+        {
+            var game = save.Get("game") ?? throw new SaveDataException("save.game is missing.");
+            if (game.Kind != JsonKind.Object) throw new SaveDataException($"save.game must be a group of fields, got {game.Describe()}.");
+            var market = game.Get("market") ?? throw new SaveDataException("save.game.market is missing.");
+            if (market.Kind != JsonKind.Object) throw new SaveDataException($"save.game.market must be a group of fields, got {market.Describe()}.");
+            if (market.Get("maxJobDistanceMilliLy") != null) throw new SaveDataException("save.game.market.maxJobDistanceMilliLy is not a field save format 2 has.");
+            var systems = SaveNode.At(game, "save.game").Child("galaxy").List("systems").Select(s => (x: s.Long("xMilliLy"), y: s.Long("yMilliLy"))).ToList();
+            long widest = TuningReader.MaxJobDistanceLimitMilliLy;
+            foreach (var a in systems)
+            foreach (var b in systems)
+                widest = Math.Max(widest, Galaxy.Distance(a.x, a.y, b.x, b.y));
+
+            var marketMembers = new List<KeyValuePair<string, JsonValue>>();
+            foreach (var m in market.Members)
+            {
+                marketMembers.Add(m);
+                if (m.Key == "createdTick")
+                    marketMembers.Add(new KeyValuePair<string, JsonValue>("maxJobDistanceMilliLy", JsonValue.Number(m.Value.Line, widest.ToString(CultureInfo.InvariantCulture))));
+            }
+            var gameMembers = game.Members
+                .Select(m => m.Key == "market" ? new KeyValuePair<string, JsonValue>("market", JsonValue.Object(m.Value.Line, marketMembers)) : m)
+                .ToList();
+            return WithGame(save, 3, gameMembers);
+        }
+
+        /// <summary>The save with its version set to <paramref name="version"/> and its game replaced by <paramref name="gameMembers"/>.</summary>
+        private static JsonValue WithGame(JsonValue save, int version, List<KeyValuePair<string, JsonValue>> gameMembers)
+        {
             var members = new List<KeyValuePair<string, JsonValue>>();
             foreach (var m in save.Members)
             {
-                if (m.Key == "version") members.Add(new KeyValuePair<string, JsonValue>("version", JsonValue.Number(m.Value.Line, "2")));
+                if (m.Key == "version") members.Add(new KeyValuePair<string, JsonValue>("version", JsonValue.Number(m.Value.Line, version.ToString(CultureInfo.InvariantCulture))));
                 else if (m.Key == "game") members.Add(new KeyValuePair<string, JsonValue>("game", JsonValue.Object(m.Value.Line, gameMembers)));
                 else members.Add(m);
             }

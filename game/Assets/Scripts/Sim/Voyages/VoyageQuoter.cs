@@ -86,7 +86,8 @@ namespace SpaceTrade.Sim.Voyages
             long freightRevenue = 0;
             foreach (var f in q.Freight) freightRevenue += f.Revenue;
             q.FreightRevenue = freightRevenue;
-            q.FarePerPassenger = market.FarePerPassenger(market.FindPool(origin, plan.DestinationId));
+            var pool = market.FindPool(origin, plan.DestinationId);
+            q.FarePerPassenger = pool == null ? 0 : market.FarePerPassenger(pool);
             q.FareRevenue = plan.Passengers * q.FarePerPassenger;
             q.ProfitPerGameYear = IntMath.DivideRounded((BigInteger)q.NetProfit * GameTime.TicksPerYear, needs.TransitTicks);
 

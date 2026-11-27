@@ -19,6 +19,7 @@
     "nearestNeighbourMinMilliLy": 2500,
     "nearestNeighbourMaxMilliLy": 7000,
     "maxHopMilliLy": 7000,
+    "maxJobDistanceMilliLy": 14000,
     "industriesPerSystemMin": 1,
     "industriesPerSystemMax": 3,
     "shipyardCountMin": 2,

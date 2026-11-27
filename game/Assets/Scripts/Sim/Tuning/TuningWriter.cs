@@ -27,6 +27,7 @@ namespace SpaceTrade.Sim.Tuning
                     .Add("nearestNeighbourMinMilliLy", t.Galaxy.NearestNeighbourMinMilliLy)
                     .Add("nearestNeighbourMaxMilliLy", t.Galaxy.NearestNeighbourMaxMilliLy)
                     .Add("maxHopMilliLy", t.Galaxy.MaxHopMilliLy)
+                    .Add("maxJobDistanceMilliLy", t.Galaxy.MaxJobDistanceMilliLy)
                     .Add("industriesPerSystemMin", t.Galaxy.IndustriesPerSystemMin)
                     .Add("industriesPerSystemMax", t.Galaxy.IndustriesPerSystemMax)
                     .Add("shipyardCountMin", t.Galaxy.ShipyardCountMin)

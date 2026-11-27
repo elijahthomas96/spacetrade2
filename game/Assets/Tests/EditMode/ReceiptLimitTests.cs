@@ -123,14 +123,17 @@ namespace SpaceTrade.Sim.Tests
 
         // ---- Format 1 saves ----
 
-        /// <summary>The save as format 1 wrote it: no delivery totals, version 1, sealed again.</summary>
+        /// <summary>The save as format 1 wrote it: no delivery totals, no job distance limit, version 1, sealed again.</summary>
         private string AsFormatOne(string text)
         {
             var block = new Regex("\"deliveryTotals\": \\{[^}]*\\},\\s*");
             Assert.AreEqual(1, block.Matches(text).Count, "Setup: one totals block.");
             string one = block.Replace(text, "");
-            StringAssert.Contains("\"version\": 2,", one);
-            return SaveFormat.Seal(one.Replace("\"version\": 2,", "\"version\": 1,"));
+            var limit = new Regex("\"maxJobDistanceMilliLy\": \\d+,\\s*");
+            Assert.AreEqual(1, limit.Matches(one).Count, "Setup: one job distance limit.");
+            one = limit.Replace(one, "");
+            StringAssert.Contains("\"version\": 3,", one);
+            return SaveFormat.Seal(one.Replace("\"version\": 3,", "\"version\": 1,"));
         }
 
         [Test]
@@ -148,7 +151,7 @@ namespace SpaceTrade.Sim.Tests
             Assert.AreEqual(DeliveryTotals.Of(sim.Receipts).DescribeState(), trimmed.DeliveryTotals.DescribeState(), "Receipts dropped on load stay in the totals.");
 
             Ok(_folder.Store.Write("one", loaded, T0));
-            StringAssert.Contains("\"version\": 2,", System.IO.File.ReadAllText(_folder.File("one.json")), "Saving again writes the current format.");
+            StringAssert.Contains("\"version\": 3,", System.IO.File.ReadAllText(_folder.File("one.json")), "Saving again writes the current format.");
         }
 
         [Test]
@@ -157,7 +160,7 @@ namespace SpaceTrade.Sim.Tests
             var sim = RouteFleet(Keeping(500));
             SaveAt(_folder, "a", sim);
             string text = System.IO.File.ReadAllText(_folder.File("a.json"));
-            System.IO.File.WriteAllText(_folder.File("a.json"), SaveFormat.Seal(text.Replace("\"version\": 2,", "\"version\": 1,")));
+            System.IO.File.WriteAllText(_folder.File("a.json"), SaveFormat.Seal(text.Replace("\"version\": 3,", "\"version\": 1,")));
             var r = _folder.Store.Load("a", Keeping(500), T0);
             Assert.IsFalse(r.Succeeded);
             StringAssert.Contains("save.game.deliveryTotals is not a field save format 1 has", r.Messages[0]);

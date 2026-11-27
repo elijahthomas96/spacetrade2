@@ -60,6 +60,9 @@ namespace SpaceTrade.Sim.Tuning
         public long NearestNeighbourMinMilliLy;
         public long NearestNeighbourMaxMilliLy;
         public long MaxHopMilliLy;
+
+        /// <summary>A new game's ports offer freight and passenger jobs only to systems within this distance. Fixed in the game when it is created.</summary>
+        public long MaxJobDistanceMilliLy;
         public int IndustriesPerSystemMin;
         public int IndustriesPerSystemMax;
         public int ShipyardCountMin;

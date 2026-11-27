@@ -14,7 +14,7 @@ namespace SpaceTrade.Sim.Saves
         public const string Marker = "spacetrade2-save";
 
         /// <summary>The save format version this game writes, and the newest it reads.</summary>
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         /// <summary>The oldest save format version that exists.</summary>
         public const int OldestVersion = 1;

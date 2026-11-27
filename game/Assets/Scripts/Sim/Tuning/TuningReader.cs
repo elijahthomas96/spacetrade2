@@ -10,6 +10,9 @@ namespace SpaceTrade.Sim.Tuning
     internal static class TuningReader
     {
         private const int MaxPercent = 100_000;
+
+        /// <summary>The largest galaxy.maxJobDistanceMilliLy accepted (1,000 ly): wider than any galaxy of the supported sizes, so it means no limit.</summary>
+        internal const long MaxJobDistanceLimitMilliLy = 1_000_000;
         private const long MaxCredits = 1_000_000_000_000L;
         private const int MaxTonnes = 10_000_000;
         private const int MaxDays = 360_000;
@@ -79,6 +82,7 @@ namespace SpaceTrade.Sim.Tuning
                 NearestNeighbourMinMilliLy = r.Long("nearestNeighbourMinMilliLy", 1, 1_000_000),
                 NearestNeighbourMaxMilliLy = r.Long("nearestNeighbourMaxMilliLy", 1, 1_000_000),
                 MaxHopMilliLy = r.Long("maxHopMilliLy", 1, 1_000_000),
+                MaxJobDistanceMilliLy = r.Long("maxJobDistanceMilliLy", 1, MaxJobDistanceLimitMilliLy),
                 IndustriesPerSystemMin = r.Int("industriesPerSystemMin", 1, 100),
                 IndustriesPerSystemMax = r.Int("industriesPerSystemMax", 1, 100),
                 ShipyardCountMin = r.Int("shipyardCountMin", 2, 1000),

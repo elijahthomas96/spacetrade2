@@ -50,20 +50,22 @@ namespace SpaceTrade.Sim.World
             }
 
             var feeds = FreightLinks(galaxy, tuning);
+            string withinJobs = $"within galaxy.maxJobDistanceMilliLy ({g.MaxJobDistanceMilliLy} milli-ly)";
             for (int i = 0; i < n; i++)
             {
                 bool exports = Enumerable.Range(0, n).Any(j => feeds[i, j]);
                 bool imports = Enumerable.Range(0, n).Any(j => feeds[j, i]);
-                if (!exports) problems.Add($"{systems[i].Name}: produces nothing that another system uses (no export).");
-                if (!imports) problems.Add($"{systems[i].Name}: uses nothing that another system produces (no import).");
+                if (!exports) problems.Add($"{systems[i].Name}: produces nothing that another system {withinJobs} uses (no export).");
+                if (!imports) problems.Add($"{systems[i].Name}: uses nothing that another system {withinJobs} produces (no import).");
             }
 
             if (!HasClosedThreeStopCircuit(feeds))
-                problems.Add("No closed three-stop freight circuit exists.");
+                problems.Add($"No closed three-stop freight circuit exists with every leg {withinJobs}.");
 
-            var reached = ReachableFrom(galaxy, galaxy.StartSystemId, g.MaxHopMilliLy);
+            long hop = System.Math.Min(g.MaxHopMilliLy, g.MaxJobDistanceMilliLy);
+            var reached = ReachableFrom(galaxy, galaxy.StartSystemId, hop);
             foreach (var s in systems)
-                if (!reached[s.Id]) problems.Add($"{s.Name}: cannot be reached from the start system in hops of {g.MaxHopMilliLy} milli-ly or less.");
+                if (!reached[s.Id]) problems.Add($"{s.Name}: cannot be reached from the start system in hops of {hop} milli-ly or less (galaxy.maxHopMilliLy and galaxy.maxJobDistanceMilliLy).");
 
             int yards = systems.Count(s => s.HasShipyard);
             if (yards < 2 || yards < g.ShipyardCountMin || yards > g.ShipyardCountMax)
@@ -77,7 +79,8 @@ namespace SpaceTrade.Sim.World
         }
 
         /// <summary>
-        /// feeds[a, b] is true when system a produces a commodity that system b consumes (a != b).
+        /// feeds[a, b] is true when system a produces a commodity that system b consumes (a != b) and b is within
+        /// galaxy.maxJobDistanceMilliLy of a, so a's port offers that freight job.
         /// </summary>
         public static bool[,] FreightLinks(Galaxy galaxy, TuningData tuning)
         {
@@ -99,7 +102,7 @@ namespace SpaceTrade.Sim.World
             var feeds = new bool[n, n];
             for (int a = 0; a < n; a++)
             for (int b = 0; b < n; b++)
-                feeds[a, b] = a != b && produces[a].Overlaps(consumes[b]);
+                feeds[a, b] = a != b && produces[a].Overlaps(consumes[b]) && galaxy.DistanceMilliLy(a, b) <= tuning.Galaxy.MaxJobDistanceMilliLy;
             return feeds;
         }
 

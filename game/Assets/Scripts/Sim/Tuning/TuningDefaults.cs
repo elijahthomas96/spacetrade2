@@ -27,6 +27,7 @@ namespace SpaceTrade.Sim.Tuning
                     NearestNeighbourMinMilliLy = 2_500,
                     NearestNeighbourMaxMilliLy = 7_000,
                     MaxHopMilliLy = 7_000,
+                    MaxJobDistanceMilliLy = 14_000,
                     IndustriesPerSystemMin = 1,
                     IndustriesPerSystemMax = 3,
                     ShipyardCountMin = 2,

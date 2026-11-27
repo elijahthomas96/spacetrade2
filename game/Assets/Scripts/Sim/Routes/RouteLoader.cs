@@ -73,6 +73,9 @@ namespace SpaceTrade.Sim.Routes
                 }
                 if (stop.Freight.Count == 0 && !stop.CarryPassengers)
                     problems.Add($"{label} lists no freight and does not carry passengers. Mark the leg to {there} as an empty repositioning leg, or choose freight or passengers.");
+                else if (!market.WithinJobDistance(stop.SystemId, next.SystemId))
+                    problems.Add($"{label}: the leg to {there} is {Format.LightYears(market.Galaxy.DistanceMilliLy(stop.SystemId, next.SystemId))}, beyond the {Format.LightYears(market.MaxJobDistanceMilliLy)} job distance limit, " +
+                        $"so {here} offers no freight or passenger jobs to {there}. Mark this leg as an empty repositioning leg, or choose a nearer next stop.");
 
                 var seen = new HashSet<string>();
                 foreach (var id in stop.Freight)

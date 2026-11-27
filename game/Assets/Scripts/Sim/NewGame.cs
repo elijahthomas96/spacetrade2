@@ -141,7 +141,7 @@ namespace SpaceTrade.Sim
             if (!check.EnoughFeasible)
             {
                 yield return prefix + $"start.openingOffers.minFeasibleJobs: the start port offers {check.FeasibleJobs.Count} job(s) the starter ship can fly and afford, needs {check.MinFeasibleJobs}. " +
-                    $"Look at start.startingCredits, start.marketStartFill, {ship}.holdTonnes, tankTonnes, and berths, and {costFields}.";
+                    $"Look at start.startingCredits, start.marketStartFill, {ship}.holdTonnes, tankTonnes, and berths, galaxy.maxJobDistanceMilliLy, and {costFields}.";
                 yield break;
             }
             if (!check.EnoughProfitable)
@@ -149,7 +149,7 @@ namespace SpaceTrade.Sim
                     $"Look at {string.Join(", ", rateFields)}, and {costFields}.";
             if (!check.HasTradeoffPair)
                 yield return prefix + "start.openingOffers.minFeasibleJobs: no two of the start port's jobs go to different destinations with one quicker and the other earning more net profit, even with every start-port rate and fare at its roll maximum. " +
-                    $"Look at {string.Join(", ", rateFields)}, {costFields}, and galaxy.nearestNeighbourMinMilliLy and nearestNeighbourMaxMilliLy.";
+                    $"Look at {string.Join(", ", rateFields)}, {costFields}, galaxy.maxJobDistanceMilliLy, and galaxy.nearestNeighbourMinMilliLy and nearestNeighbourMaxMilliLy.";
         }
     }
 }

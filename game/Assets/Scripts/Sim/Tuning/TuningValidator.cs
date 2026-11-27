@@ -43,6 +43,8 @@ namespace SpaceTrade.Sim.Tuning
             Order("galaxy", "nearestNeighbourMinMilliLy", g.NearestNeighbourMinMilliLy, "nearestNeighbourMaxMilliLy", g.NearestNeighbourMaxMilliLy);
             if (g.MaxHopMilliLy < g.NearestNeighbourMaxMilliLy)
                 errors.Add($"galaxy.maxHopMilliLy: must be at least galaxy.nearestNeighbourMaxMilliLy ({g.NearestNeighbourMaxMilliLy}), got {g.MaxHopMilliLy}");
+            if (g.MaxJobDistanceMilliLy < g.MaxHopMilliLy)
+                errors.Add($"galaxy.maxJobDistanceMilliLy: must be at least galaxy.maxHopMilliLy ({g.MaxHopMilliLy}), so every hop that links the map to the start system has jobs, got {g.MaxJobDistanceMilliLy}");
             Order("galaxy", "industriesPerSystemMin", g.IndustriesPerSystemMin, "industriesPerSystemMax", g.IndustriesPerSystemMax);
             if (g.IndustriesPerSystemMax < 2)
                 errors.Add($"galaxy.industriesPerSystemMax: must be at least 2, so a shipyard system can also have an industry that trades, got {g.IndustriesPerSystemMax}");

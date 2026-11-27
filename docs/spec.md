@@ -91,10 +91,11 @@ Six freight commodities and six industry types. Counts and names are tuning data
 | Population hub | Food, Consumer goods | Passengers (large volume) |
 | Shipyard works | Metals, Machinery | (enables a shipyard) |
 
-Generation must guarantee:
+Generation must guarantee the following. Ports offer jobs only to systems within the **job distance limit** `maxJobDistanceMilliLy` (section 5.1), so the freight guarantees count only trades within it:
 
-- At least one closed three-stop freight circuit exists (for example ore to a refinery, machinery to a farm system, food back to the colony).
-- Every system can be reached and has at least one export and one import. A system is reachable if a chain of hops, each no longer than `maxHopMilliLy` (tuning, default 7 ly), connects it to the start system.
+- At least one closed three-stop freight circuit exists with every leg within the job distance limit (for example ore to a refinery, machinery to a farm system, food back to the colony).
+- Every system can be reached and has at least one export and one import, each to or from a system within the job distance limit. A system is reachable if a chain of hops, each no longer than `maxHopMilliLy` (tuning, default 7 ly), connects it to the start system. The limit is never below `maxHopMilliLy`, so every such hop has passenger jobs both ways.
+- The job distance limit is fixed when a game is created and stored in the save, like the galaxy. Editing `maxJobDistanceMilliLy` later applies to new games only. If no galaxy meets these guarantees under the tuning (for example because the limit is too small for the distances), the new game is refused with a message naming `galaxy.maxJobDistanceMilliLy` among the fields to look at.
 - At least two systems have shipyards, and the start system is within `maxHopMilliLy` of one.
 - The map and system panels show enough (exports, imports, rates, distances) for the player to find circuits without outside notes.
 
@@ -102,7 +103,8 @@ Generation must guarantee:
 
 ### 5.1 Freight
 
-- A **freight offer** is: origin system, commodity, destination system, tonnes available, contracted rate per tonne. Offers come from a producing industry paired with a consuming industry elsewhere.
+- A **freight offer** is: origin system, commodity, destination system, tonnes available, contracted rate per tonne. Offers come from a producing industry paired with a consuming industry elsewhere, **within the job distance limit**.
+- **Job distance limit (session 10c).** A port offers freight and passenger jobs only to systems no farther away than `galaxy.maxJobDistanceMilliLy` (section 12). This keeps job lists short and catch-up fast in large galaxies. The limit is fixed when the game is created and stored in the save (section 11.1); editing the tuning field later changes new games only, never an existing save. A loaded voyage (any freight or passengers) to a system beyond the limit is refused, changing nothing, with both distances in the reason, for example "Gamma offers no food jobs to Alpha: it is 7.5 ly away, beyond the 7 ly job distance limit. An empty voyage can still go there." An empty voyage can go any distance the ship can fly; it earns nothing.
 - **Supply** at the origin is finite and replenishes over game time up to a cap.
 - **Demand** at the destination is finite and replenishes over game time up to a cap.
 - When a galaxy's markets are created, supply and demand start at a tuning percent of their caps (`start.marketStartFill`, 0 to 100, default 100).
@@ -111,7 +113,7 @@ Generation must guarantee:
 
 ### 5.2 Passengers
 
-- A **passenger booking pool** is: origin, destination, passengers waiting, fare per passenger. Pools scale with the populations at both ends and replenish over time. Fares roll the same way freight rates do: the save stores the rolled percent, and at dispatch the fare is locked as a fixed credit amount per passenger. Pools start at a tuning percent of their size (`start.marketStartFill`, default 100).
+- A **passenger booking pool** is: origin, destination, passengers waiting, fare per passenger. There is a pool for each pair of systems within the job distance limit (section 5.1), in each direction, and none beyond it. Pools scale with the populations at both ends and replenish over time. Fares roll the same way freight rates do: the save stores the rolled percent, and at dispatch the fare is locked as a fixed credit amount per passenger. Pools start at a tuning percent of their size (`start.marketStartFill`, default 100).
 
 ### 5.3 Reservations
 
@@ -276,6 +278,7 @@ A manually dispatched ship stays docked after arrival until ordered out again.
 
 - **Valid orders.** At least two stops. Two consecutive stops (the last and the first included) must be different systems; a system may appear more than once otherwise. Each eligible commodity must be produced at its stop and bought at the next stop, and none may be listed twice. A freight minimum needs at least one eligible commodity; a passenger minimum needs passengers switched on. Minimums cannot be negative. Invalid orders are refused, listing every problem, and change nothing.
 - **Empty legs are explicit.** A stop marked as an empty repositioning leg cannot list freight, carry passengers, or have a minimum. A stop that lists no freight and does not carry passengers must be marked empty; otherwise the orders are refused.
+- **Legs beyond the job distance limit (section 5.1) must be empty.** A stop that lists freight or carries passengers on a leg longer than the game's job distance limit is refused when the orders are set, naming the leg with its distance and the limit, for example "Stop 1 (Gamma): the leg to Alpha is 7.5 ly, beyond the 7 ly job distance limit, so Gamma offers no freight or passenger jobs to Alpha. Mark this leg as an empty repositioning leg, or choose a nearer next stop." The same leg marked as an empty repositioning leg is accepted.
 - **Where the ship starts.** The ship starts at the first stop (in list order) whose system is where it is docked, or where it is heading if it is in flight. Orders can be set on a ship in flight; they never change the voyage in progress.
 - **Ships on in-system transport.** Setting or resuming a route on a ship with in-system transport on is refused, changing nothing, with a reason telling the player to turn in-system transport off first. A ship on an active route cannot be switched onto in-system transport (section 10).
 - **Manual dispatch.** A ship on an active route cannot be dispatched by hand; the order is refused, changing nothing, with a reason telling the player to pause or clear the route first. It can be dispatched by hand while its route is paused. Quote, Provision, and drive fitting stay allowed on a route ship.
@@ -384,7 +387,7 @@ Versioned saves under Unity's persistent data path (`%USERPROFILE%\AppData\Local
 - **Clock:** the tick, the selected speed, and the pause state.
 - **Money:** credits, the supplies-bought total (section 6.7), and the in-system income total (section 10).
 - **Galaxy:** the seed, the start system, and every generated system exactly (id, name, position, population, industries, whether it has a shipyard), so a later change to galaxy generation never changes a saved galaxy.
-- **Market:** when the market was created; both random generators' exact states (market and shipyard); whether the start port's opening rates are still held (section 6.4); every supply and demand stock; every freight offer's and passenger pool's stored roll and waiting passengers; every system's provision price rolls; every shipyard's price roll and, per ship class and drive, its stock count and stock-limit roll. Reservations last only inside a command, so none is ever open when a save is written.
+- **Market:** when the market was created; the game's job distance limit (section 5.1), fixed at creation; both random generators' exact states (market and shipyard); whether the start port's opening rates are still held (section 6.4); every supply and demand stock; every freight offer's and passenger pool's stored roll and waiting passengers; every system's provision price rolls; every shipyard's price roll and, per ship class and drive, its stock count and stock-limit roll. Reservations last only inside a command, so none is ever open when a save is written.
 - **Ships:** for every ship, its **id, name, class, drive, and docked system (empty while in transit)**; fuel, food, and water aboard, each with its total cost; the tick its in-system transport went on (if on); its voyage in flight with all locked terms (origin, destination, distance, drive, departure and arrival ticks, freight lines with locked rates, passengers and locked fare, and the fuel, food, and water it will use); and its route (stops with every order, current stop, paused or not, status and its reason, whether it is blocked for a top-up, and its last and pending recheck ticks). The next ship id is saved too.
 - **Deliveries:** the running delivery totals (section 6.7) and the newest receipts kept in full (section 12, `receipts.keepNewest`), in arrival order.
 - **Notifications:** the newest ones kept (section 12, `notifications.keepNewest`).
@@ -398,8 +401,8 @@ Debug permission (section 13) is never saved.
 - **Checksum.** Every save carries a SHA-256 checksum of its own text. A file whose checksum does not match is treated as damaged.
 - **Damaged saves.** A save that is cut short, unreadable, fails its checksum, or whose contents do not fit together is damaged. The game then loads the backup instead and tells the player both what was wrong and that the backup (with its date) was loaded. The damaged file is kept under a new name (`name.json.damaged-YYYYMMDD-HHMMSS`) and never deleted, so the next save starts a fresh main file and the good backup stays. If the backup cannot be loaded either, nothing is loaded and no file is changed.
 - **Refused saves.** Only damage falls back to the backup. A save from a newer or unknown format version, or one that uses a commodity, ship class, or drive the current tuning file no longer defines, is refused with a clear message and changes nothing; the backup is not tried.
-- **Versions.** An older format version is converted step by step on load (a migration hook). Format 2 is current. Format 1 had no delivery totals but kept every receipt, so converting it works the totals out exactly from its receipts. A save is never loaded half-way: the game is rebuilt separately and handed over only when every step succeeds.
-- **Tuning on load.** A save loads with the current tuning file. Prices, rates, stock limits, and caps follow it; in-flight voyages keep their locked terms and arrival ticks. If a replenish, re-roll, or restock interval changed, the next market event is rescheduled under the new interval, but nothing is ever granted for time already passed: no extra replenishment, re-roll, or restock from before the load. Lowering `notifications.keepNewest` trims the oldest notifications on load. Lowering `receipts.keepNewest` drops the oldest receipts on load; the delivery totals do not change.
+- **Versions.** An older format version is converted step by step on load (a migration hook). Format 3 is current. Format 1 had no delivery totals but kept every receipt, so converting it works the totals out exactly from its receipts. Format 2 had no job distance limit and offered every job at any distance, so converting it gives the game a limit no smaller than its widest distance (at least 1,000,000 milli-ly, the largest the tuning accepts), and every job it had stays. A save is never loaded half-way: the game is rebuilt separately and handed over only when every step succeeds.
+- **Tuning on load.** A save loads with the current tuning file. Prices, rates, stock limits, and caps follow it; in-flight voyages keep their locked terms and arrival ticks. If a replenish, re-roll, or restock interval changed, the next market event is rescheduled under the new interval, but nothing is ever granted for time already passed: no extra replenishment, re-roll, or restock from before the load. Lowering `notifications.keepNewest` trims the oldest notifications on load. Lowering `receipts.keepNewest` drops the oldest receipts on load; the delivery totals do not change. The job distance limit comes from the save, not the tuning file, so editing `galaxy.maxJobDistanceMilliLy` changes nothing in a saved game.
 - **Slots.** Each game has a current slot. Autosaves and the quit save write to it. "Save as" writes a new named slot, which becomes the current slot (a failed "Save as" keeps the old one). Slot names use letters, digits, spaces, `-`, and `_`, up to 64 characters. Starting a new game under a name that already exists is refused. How a new game is named is decided in session 17.
 - **Autosave.** The game autosaves on every dispatch, every arrival, every 60 real seconds, and on quit. The player can also save at any time.
 - **Save warning.** If a save fails, the game keeps running and shows a warning with the reason. The warning stays visible until a save succeeds.
@@ -424,7 +427,7 @@ Debug permission (section 13) is never saved.
 One JSON file (a plain text data format), at `game/Assets/StreamingAssets/tuning.json`. In a built game it sits at `spacetrade2_Data\StreamingAssets\tuning.json` and can be edited with any text editor. Sections:
 
 - **start:** starting credits, starter ship class and drive, opening-offer rules, market starting fill (percent of cap, 0 to 100, separately for freight supply, destination demand, and passenger pools; default 100).
-- **galaxy:** system count range, distance ranges, maximum hop distance `maxHopMilliLy` (default 7,000 milli-ly; must be at least the nearest-neighbour maximum), industries per system, shipyard count, name list.
+- **galaxy:** system count range, distance ranges, maximum hop distance `maxHopMilliLy` (default 7,000 milli-ly; must be at least the nearest-neighbour maximum), job distance limit `maxJobDistanceMilliLy` (section 5.1; first value 14,000 milli-ly, final value set in session 18; must be at least `maxHopMilliLy` and at most 1,000,000; fixed when a game is created and stored in its save, so an edit applies to new games only), industries per system, shipyard count, name list.
 - **commodities:** per commodity base rate per tonne, rate roll range, supply and demand caps, replenish amounts and intervals.
 - **passengers:** base fare, fare roll range, pool sizes, replenish rates.
 - **rates:** distance factor, re-roll interval.
@@ -439,11 +442,11 @@ One JSON file (a plain text data format), at `game/Assets/StreamingAssets/tuning
 
 Rules:
 
-- The file is read when the game starts. Changes apply to existing saves for anything not already locked (in-flight voyages keep their locked terms; the generated galaxy does not change).
+- The file is read when the game starts. Changes apply to existing saves for anything not already locked (in-flight voyages keep their locked terms; the generated galaxy and the job distance limit do not change).
 - The file is validated on load. A bad value produces a message naming the field, and the game falls back to built-in defaults rather than crashing.
 - Validation includes a starter-range check: the starter ship class with the starter drive, a full fuel tank, crew only, and the food and water that crew needs, must be able to fly `maxHopMilliLy`. Failure gives a field-named error like any other.
 - A companion `docs/tuning-guide.md` explains each field in plain language with its unit.
-- Automated tests use a fixed test copy of the tuning data, so editing the live file never breaks the test suite. One separate test checks that the live file loads and still satisfies the new-game guarantees in section 6.4.
+- Automated tests use a fixed test copy of the tuning data, so editing the live file never breaks the test suite. One separate test checks that the live file loads and still satisfies the new-game guarantees in section 6.4, and that at 12, 25, and 50 systems every galaxy guarantee (section 4) holds within its job distance limit on 200 seeds.
 
 Balance targets for the default values (the agent tunes toward these and reports results):
 

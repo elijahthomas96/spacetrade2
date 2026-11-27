@@ -24,7 +24,7 @@ namespace SpaceTrade.Sim.World
                 if (candidate != null && GalaxyRules.FindProblems(candidate, tuning).Count == 0)
                     return candidate;
             }
-            throw new InvalidOperationException($"Could not generate a galaxy meeting every guarantee for seed {seed} after {MaxCandidates} attempts. Check the galaxy and industries sections of the tuning data.");
+            throw new InvalidOperationException($"Could not generate a galaxy meeting every guarantee for seed {seed} after {MaxCandidates} attempts. Check the galaxy and industries sections of the tuning data, including galaxy.maxJobDistanceMilliLy ({tuning.Galaxy.MaxJobDistanceMilliLy}).");
         }
 
         private static Galaxy TryBuild(long seed, TuningData tuning, SeededRandom rng)

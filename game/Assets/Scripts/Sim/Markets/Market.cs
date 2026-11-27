@@ -30,6 +30,8 @@ namespace SpaceTrade.Sim.Markets
         private readonly Dictionary<(int, string), CommodityStock> _demandIndex = new Dictionary<(int, string), CommodityStock>();
         private readonly Dictionary<(int, string, int), FreightOffer> _offerIndex = new Dictionary<(int, string, int), FreightOffer>();
         private readonly Dictionary<(int, int), PassengerPool> _poolIndex = new Dictionary<(int, int), PassengerPool>();
+        private readonly Dictionary<int, List<FreightOffer>> _offersByOrigin = new Dictionary<int, List<FreightOffer>>();
+        private readonly Dictionary<int, List<PassengerPool>> _poolsByOrigin = new Dictionary<int, List<PassengerPool>>();
 
         public Galaxy Galaxy { get; }
         public TuningData Tuning { get; private set; }
@@ -68,14 +70,24 @@ namespace SpaceTrade.Sim.Markets
         /// </summary>
         public bool HoldsOpeningRates { get; private set; }
 
-        private Market(Galaxy galaxy, TuningData tuning, long createdTick, SeededRandom random, SeededRandom yardRandom)
+        /// <summary>
+        /// Ports offer freight and passenger jobs only to systems within this distance (spec 5). Taken from
+        /// galaxy.maxJobDistanceMilliLy when the market is created and kept in the save; later tuning edits do not change it.
+        /// </summary>
+        public long MaxJobDistanceMilliLy { get; }
+
+        private Market(Galaxy galaxy, TuningData tuning, long createdTick, SeededRandom random, SeededRandom yardRandom, long maxJobDistanceMilliLy)
         {
             Galaxy = galaxy;
             Tuning = tuning;
             CreatedTick = createdTick;
             Random = random;
             YardRandom = yardRandom;
+            MaxJobDistanceMilliLy = maxJobDistanceMilliLy;
         }
+
+        /// <summary>True when ports offer jobs between these two systems: different systems no farther apart than <see cref="MaxJobDistanceMilliLy"/>.</summary>
+        public bool WithinJobDistance(int fromId, int toId) => fromId != toId && Galaxy.DistanceMilliLy(fromId, toId) <= MaxJobDistanceMilliLy;
 
         /// <summary>
         /// Builds a fresh market: stocks at the tuning start-fill percent of their caps, and every
@@ -87,7 +99,7 @@ namespace SpaceTrade.Sim.Markets
             if (tuning == null) throw new ArgumentNullException(nameof(tuning));
             if (createdTick < 0) throw new ArgumentOutOfRangeException(nameof(createdTick), createdTick, "Tick cannot be negative.");
 
-            var m = new Market(galaxy, tuning, createdTick, new SeededRandom(galaxy.Seed ^ RandomSalt), new SeededRandom(galaxy.Seed ^ YardRandomSalt));
+            var m = new Market(galaxy, tuning, createdTick, new SeededRandom(galaxy.Seed ^ RandomSalt), new SeededRandom(galaxy.Seed ^ YardRandomSalt), tuning.Galaxy.MaxJobDistanceMilliLy);
             var fill = tuning.Start.MarketStartFill;
             var systems = galaxy.Systems;
 
@@ -106,10 +118,8 @@ namespace SpaceTrade.Sim.Markets
                 if (m.FindSupply(origin.Id, c.Id) == null) continue;
                 foreach (var dest in systems)
                 {
-                    if (dest.Id == origin.Id || m.FindDemand(dest.Id, c.Id) == null) continue;
-                    var offer = new FreightOffer(origin.Id, c.Id, dest.Id, galaxy.DistanceMilliLy(origin.Id, dest.Id), m.Random.Range(c.RateRollMinPercent, c.RateRollMaxPercent));
-                    m._offers.Add(offer);
-                    m._offerIndex.Add((origin.Id, c.Id, dest.Id), offer);
+                    if (!m.WithinJobDistance(origin.Id, dest.Id) || m.FindDemand(dest.Id, c.Id) == null) continue;
+                    m.AddOffer(new FreightOffer(origin.Id, c.Id, dest.Id, galaxy.DistanceMilliLy(origin.Id, dest.Id), m.Random.Range(c.RateRollMinPercent, c.RateRollMaxPercent)));
                 }
             }
 
@@ -117,11 +127,9 @@ namespace SpaceTrade.Sim.Markets
             foreach (var origin in systems)
             foreach (var dest in systems)
             {
-                if (dest.Id == origin.Id) continue;
+                if (!m.WithinJobDistance(origin.Id, dest.Id)) continue;
                 int cap = MarketMath.PoolCap(origin.PopulationMillions, dest.PopulationMillions, m.IsHub(origin.Id), p);
-                var pool = new PassengerPool(origin.Id, dest.Id, galaxy.DistanceMilliLy(origin.Id, dest.Id), MarketMath.StartingAmount(cap, fill.PassengerPercent), m.Random.Range(p.FareRollMinPercent, p.FareRollMaxPercent));
-                m._pools.Add(pool);
-                m._poolIndex.Add((origin.Id, dest.Id), pool);
+                m.AddPool(new PassengerPool(origin.Id, dest.Id, galaxy.DistanceMilliLy(origin.Id, dest.Id), MarketMath.StartingAmount(cap, fill.PassengerPercent), m.Random.Range(p.FareRollMinPercent, p.FareRollMaxPercent)));
             }
 
             var pr = tuning.Provisions;
@@ -191,10 +199,12 @@ namespace SpaceTrade.Sim.Markets
         /// </summary>
         internal static Market Restore(Galaxy galaxy, TuningData tuning, long createdTick, SeededRandom random, SeededRandom yardRandom, bool holdsOpeningRates,
             IEnumerable<CommodityStock> supplies, IEnumerable<CommodityStock> demands, IEnumerable<(int origin, string commodity, int destination, int roll)> offers,
-            IEnumerable<(int origin, int destination, int waiting, int roll)> pools, IEnumerable<ProvisionRoll> provisionRolls, IEnumerable<Shipyard> yards)
+            IEnumerable<(int origin, int destination, int waiting, int roll)> pools, IEnumerable<ProvisionRoll> provisionRolls, IEnumerable<Shipyard> yards,
+            long maxJobDistanceMilliLy)
         {
             if (createdTick < 0) throw new ArgumentException($"The market's creation tick {createdTick} is negative.");
-            var m = new Market(galaxy, tuning, createdTick, random, yardRandom) { HoldsOpeningRates = holdsOpeningRates };
+            if (maxJobDistanceMilliLy < 1) throw new ArgumentException($"The market's job distance limit {maxJobDistanceMilliLy} milli-ly is below 1.");
+            var m = new Market(galaxy, tuning, createdTick, random, yardRandom, maxJobDistanceMilliLy) { HoldsOpeningRates = holdsOpeningRates };
             int count = galaxy.Systems.Count;
             void CheckSystem(int id, string what)
             {
@@ -213,25 +223,30 @@ namespace SpaceTrade.Sim.Markets
                 CheckSystem(o.destination, "A freight offer");
                 if (m.FindSupply(o.origin, o.commodity) == null || m.FindDemand(o.destination, o.commodity) == null || o.origin == o.destination)
                     throw new ArgumentException($"The freight offer for {o.commodity} from system {o.origin} to {o.destination} has no matching supply and demand.");
-                var offer = new FreightOffer(o.origin, o.commodity, o.destination, galaxy.DistanceMilliLy(o.origin, o.destination), o.roll);
-                m._offerIndex.Add((o.origin, o.commodity, o.destination), offer);
-                m._offers.Add(offer);
+                if (!m.WithinJobDistance(o.origin, o.destination))
+                    throw new ArgumentException($"The freight offer for {o.commodity} from system {o.origin} to {o.destination} is beyond the game's job distance limit of {maxJobDistanceMilliLy} milli-ly.");
+                m.AddOffer(new FreightOffer(o.origin, o.commodity, o.destination, galaxy.DistanceMilliLy(o.origin, o.destination), o.roll));
             }
             foreach (var s in m._supplies)
             foreach (var d in m._demands)
-                if (d.CommodityId == s.CommodityId && d.SystemId != s.SystemId && m.FindOffer(s.SystemId, s.CommodityId, d.SystemId) == null)
-                    throw new ArgumentException($"The freight offer for {s.CommodityId} from system {s.SystemId} to {d.SystemId} is missing.");
+                if (d.CommodityId == s.CommodityId && m.WithinJobDistance(s.SystemId, d.SystemId) && m.FindOffer(s.SystemId, s.CommodityId, d.SystemId) == null)
+                    throw new ArgumentException($"The freight offer for {s.CommodityId} from system {s.SystemId} to {d.SystemId} is missing, though it is within the game's job distance limit of {maxJobDistanceMilliLy} milli-ly.");
             foreach (var p in pools)
             {
                 CheckSystem(p.origin, "A passenger pool");
                 CheckSystem(p.destination, "A passenger pool");
                 if (p.origin == p.destination) throw new ArgumentException($"A passenger pool goes from system {p.origin} to itself.");
                 if (p.waiting < 0) throw new ArgumentException($"The passenger pool from system {p.origin} to {p.destination} has {p.waiting} waiting.");
-                var pool = new PassengerPool(p.origin, p.destination, galaxy.DistanceMilliLy(p.origin, p.destination), p.waiting, p.roll);
-                m._poolIndex.Add((p.origin, p.destination), pool);
-                m._pools.Add(pool);
+                if (!m.WithinJobDistance(p.origin, p.destination))
+                    throw new ArgumentException($"The passenger pool from system {p.origin} to {p.destination} is beyond the game's job distance limit of {maxJobDistanceMilliLy} milli-ly.");
+                m.AddPool(new PassengerPool(p.origin, p.destination, galaxy.DistanceMilliLy(p.origin, p.destination), p.waiting, p.roll));
             }
-            if (m._pools.Count != count * (count - 1)) throw new ArgumentException($"The market has {m._pools.Count} passenger pools; a galaxy of {count} systems needs {count * (count - 1)}.");
+            int pairs = 0;
+            for (int a = 0; a < count; a++)
+            for (int b = 0; b < count; b++)
+                if (m.WithinJobDistance(a, b)) pairs++;
+            if (m._pools.Count != pairs)
+                throw new ArgumentException($"The market has {m._pools.Count} passenger pools; a galaxy of {count} systems with a job distance limit of {maxJobDistanceMilliLy} milli-ly needs {pairs}.");
             foreach (var r in provisionRolls)
             {
                 if (r.SystemId != m._provisionRolls.Count) throw new ArgumentException($"Provision rolls must list systems 0 to {count - 1} in order; found system {r.SystemId} at position {m._provisionRolls.Count}.");
@@ -323,6 +338,22 @@ namespace SpaceTrade.Sim.Markets
             index.Add((stock.SystemId, stock.CommodityId), stock);
         }
 
+        private void AddOffer(FreightOffer offer)
+        {
+            _offerIndex.Add((offer.OriginId, offer.CommodityId, offer.DestinationId), offer);
+            _offers.Add(offer);
+            if (!_offersByOrigin.TryGetValue(offer.OriginId, out var list)) _offersByOrigin.Add(offer.OriginId, list = new List<FreightOffer>());
+            list.Add(offer);
+        }
+
+        private void AddPool(PassengerPool pool)
+        {
+            _poolIndex.Add((pool.OriginId, pool.DestinationId), pool);
+            _pools.Add(pool);
+            if (!_poolsByOrigin.TryGetValue(pool.OriginId, out var list)) _poolsByOrigin.Add(pool.OriginId, list = new List<PassengerPool>());
+            list.Add(pool);
+        }
+
         private IEnumerable<IndustryTuning> IndustriesAt(int systemId)
         {
             foreach (var id in Galaxy.Systems[systemId].IndustryIds)
@@ -343,8 +374,11 @@ namespace SpaceTrade.Sim.Markets
         public FreightOffer FindOffer(int originId, string commodityId, int destinationId) => _offerIndex.TryGetValue((originId, commodityId, destinationId), out var o) ? o : null;
         public PassengerPool FindPool(int originId, int destinationId) => _poolIndex.TryGetValue((originId, destinationId), out var p) ? p : null;
 
-        public IEnumerable<FreightOffer> OffersFrom(int originId) => _offers.Where(o => o.OriginId == originId);
-        public IEnumerable<PassengerPool> PoolsFrom(int originId) => _pools.Where(p => p.OriginId == originId);
+        /// <summary>Every freight offer from this system, in the same order as <see cref="Offers"/>.</summary>
+        public IReadOnlyList<FreightOffer> OffersFrom(int originId) => _offersByOrigin.TryGetValue(originId, out var list) ? list : (IReadOnlyList<FreightOffer>)Array.Empty<FreightOffer>();
+
+        /// <summary>Every passenger pool from this system, in the same order as <see cref="Pools"/>.</summary>
+        public IReadOnlyList<PassengerPool> PoolsFrom(int originId) => _poolsByOrigin.TryGetValue(originId, out var list) ? list : (IReadOnlyList<PassengerPool>)Array.Empty<PassengerPool>();
 
         private CommodityTuning Commodity(string id) => Tuning.FindCommodity(id);
 
@@ -497,8 +531,8 @@ namespace SpaceTrade.Sim.Markets
                 FindSupply(request.OriginId, line.CommodityId).Tonnes -= line.Tonnes;
                 FindDemand(request.DestinationId, line.CommodityId).Tonnes -= line.Tonnes;
             }
-            pool.Waiting -= request.Passengers;
-            reservation = new MarketReservation(this, request.OriginId, request.DestinationId, lines, request.Passengers, FarePerPassenger(pool));
+            if (pool != null) pool.Waiting -= request.Passengers;
+            reservation = new MarketReservation(this, request.OriginId, request.DestinationId, lines, request.Passengers, pool == null ? 0 : FarePerPassenger(pool));
             return CommandResult.Ok();
         }
 
@@ -544,19 +578,26 @@ namespace SpaceTrade.Sim.Markets
                 if (supply == null) problems.Add($"{from} does not produce {name}.");
                 if (demand == null) problems.Add($"{to} does not buy {name}.");
                 if (supply == null || demand == null) continue;
+                var offer = FindOffer(request.OriginId, c.Id, request.DestinationId);
+                if (offer == null) { problems.Add($"{from} offers no {name} jobs to {to}: {BeyondJobDistance(request.OriginId, request.DestinationId)}"); continue; }
                 int available = Math.Min(supply.Tonnes, demand.Tonnes);
                 if (tonnes > available)
                     problems.Add($"Only {available} t of {name} available from {from} to {to} (supply {supply.Tonnes} t at {from}, demand {demand.Tonnes} t at {to}); requested {tonnes} t.");
                 else
-                    lines.Add(new ReservedFreight(c.Id, (int)tonnes, RatePerTonne(FindOffer(request.OriginId, c.Id, request.DestinationId))));
+                    lines.Add(new ReservedFreight(c.Id, (int)tonnes, RatePerTonne(offer)));
             }
 
             pool = FindPool(request.OriginId, request.DestinationId);
             if (request.Passengers < 0) problems.Add($"The passenger count cannot be negative, got {request.Passengers}.");
-            else if (request.Passengers > pool.Waiting) problems.Add($"Only {pool.Waiting} passengers waiting from {from} to {to}; requested {request.Passengers}.");
+            else if (pool == null && request.Passengers > 0) problems.Add($"{from} has no passenger bookings to {to}: {BeyondJobDistance(request.OriginId, request.DestinationId)}");
+            else if (pool != null && request.Passengers > pool.Waiting) problems.Add($"Only {pool.Waiting} passengers waiting from {from} to {to}; requested {request.Passengers}.");
 
             return problems;
         }
+
+        /// <summary>"it is 23.4 ly away, beyond the 21 ly job distance limit. An empty voyage can still go there."</summary>
+        private string BeyondJobDistance(int fromId, int toId) =>
+            $"it is {Format.LightYears(Galaxy.DistanceMilliLy(fromId, toId))} away, beyond the {Format.LightYears(MaxJobDistanceMilliLy)} job distance limit. An empty voyage can still go there.";
 
         /// <summary>
         /// Puts back exactly what a reservation took. For undoing a reservation inside the same
@@ -572,7 +613,8 @@ namespace SpaceTrade.Sim.Markets
                 FindSupply(reservation.OriginId, line.CommodityId).Tonnes += line.Tonnes;
                 FindDemand(reservation.DestinationId, line.CommodityId).Tonnes += line.Tonnes;
             }
-            FindPool(reservation.OriginId, reservation.DestinationId).Waiting += reservation.Passengers;
+            var pool = FindPool(reservation.OriginId, reservation.DestinationId);
+            if (pool != null) pool.Waiting += reservation.Passengers;
             reservation.IsReleased = true;
             return CommandResult.Ok();
         }
@@ -584,6 +626,7 @@ namespace SpaceTrade.Sim.Markets
             sb.Append("seed=").Append(Galaxy.Seed).Append(" start=").Append(Galaxy.StartSystemId)
               .Append(" created=").Append(CreatedTick).Append(" openingHeld=").Append(HoldsOpeningRates)
               .Append(" rng=").Append(Random.S0).Append(',').Append(Random.S1).Append(',').Append(Random.S2).Append(',').Append(Random.S3).Append('\n');
+            sb.Append("joblimit ").Append(MaxJobDistanceMilliLy).Append('\n');
             foreach (var sys in Galaxy.Systems)
                 sb.Append("system ").Append(sys.Id).Append(" \"").Append(sys.Name).Append("\" x=").Append(sys.XMilliLy).Append(" y=").Append(sys.YMilliLy)
                   .Append(" pop=").Append(sys.PopulationMillions).Append(" industries=[").Append(string.Join(",", sys.IndustryIds)).Append("] yard=").Append(sys.HasShipyard).Append('\n');

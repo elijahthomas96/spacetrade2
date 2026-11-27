@@ -68,6 +68,7 @@ namespace SpaceTrade.Sim.Saves
 
         private static JsonObjectBuilder Market(Market m) => new JsonObjectBuilder()
             .Add("createdTick", m.CreatedTick)
+            .Add("maxJobDistanceMilliLy", m.MaxJobDistanceMilliLy)
             .Add("random", RandomState(m.Random))
             .Add("yardRandom", RandomState(m.YardRandom))
             .Add("holdsOpeningRates", m.HoldsOpeningRates)
