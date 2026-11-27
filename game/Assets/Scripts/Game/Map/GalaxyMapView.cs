@@ -79,16 +79,18 @@ namespace SpaceTrade.Game.Map
         }
 
         /// <summary>The system whose marker is nearest the screen point and within <paramref name="maxPixels"/>, or -1.</summary>
-        public int PickSystem(Vector2 screenPoint, float maxPixels)
+        public int PickSystem(Vector2 screenPoint, float maxPixels) => PickSystem(screenPoint, maxPixels, out _);
+
+        public int PickSystem(Vector2 screenPoint, float maxPixels, out float distanceSquared)
         {
-            if (Galaxy == null) return -1;
             int best = -1;
-            float bestSq = maxPixels * maxPixels;
+            distanceSquared = maxPixels * maxPixels;
+            if (Galaxy == null) return -1;
             foreach (var s in Galaxy.Systems)
             {
                 Vector2 sp = _camera.WorldToScreenPoint(WorldPosition(s));
                 float d = (sp - screenPoint).sqrMagnitude;
-                if (d <= bestSq) { bestSq = d; best = s.Id; }
+                if (d <= distanceSquared) { distanceSquared = d; best = s.Id; }
             }
             return best;
         }

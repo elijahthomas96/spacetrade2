@@ -136,6 +136,8 @@ There is one rounding rule. Wherever a figure is rounded to the nearest whole nu
 
 Three amounts are rounded up instead, on purpose, because coming out short would be wrong: transit ticks (section 3.3), the real time remaining shown to the player (so a countdown never reaches zero early), and the supplies a voyage needs (section 6.3). These are round-ups, not roundings to the nearest number.
 
+Two figures shown on screen are rounded down instead, on purpose, so that a ship never shows 100 percent before it has docked: a ship's progress percent and the distance it has flown (section 6.7). They are display only: never stored, never saved, and never used in any rule. A docked ship shows 100 percent.
+
 ## 6. Ships and voyages
 
 ### 6.1 Ship classes
@@ -217,6 +219,8 @@ Each supply aboard has a quantity and a total cost, so it has one average price.
 **When supplies are used.** A voyage's supplies are used up and expensed once, at arrival: the kilograms of fuel, food, and water fixed at dispatch are taken out of the ship's stock at that moment, at their acquisition cost, and that is the only place supplies are used up. (Buying, through Provision or the dispatch top-up, still adds kilograms and cost.) Nothing aboard changes during the flight.
 
 **Remaining supplies in flight.** The supplies a ship in flight shows as remaining are a read-only figure, worked out from the locked voyage terms and the current tick, in whole kilograms. It is never stored, never saved, and changes nothing. For each supply: used so far = the voyage's locked use x ticks elapsed / transit ticks, rounded once by the one rounding rule (section 5.5); remaining = what is aboard - used so far. At the dispatch tick it equals what is aboard; at the arrival tick it equals exactly what settlement leaves aboard. Because the figure uses only locked terms, tuning edits during the flight do not change it.
+
+**Position in flight.** Where a ship is drawn is also a read-only figure, worked out the same way and never stored, saved, or used in any rule. A docked ship is exactly at its system. A ship in flight is at origin + (destination - origin) x ticks elapsed / transit ticks, each coordinate in whole milli-light-years, rounded once by the one rounding rule, so it is at the origin at the dispatch tick and at the destination at the arrival tick. Progress is shown in hundredths of a percent (ticks elapsed x 10,000 / transit ticks) and distance flown in whole milli-light-years (distance x ticks elapsed / transit ticks), both rounded down (section 5.5), so in flight they stay below 100 percent and below the full distance. A docked ship shows 100 percent. Speed changes and pausing move the clock, not the voyage, so they never change the arrival tick.
 
 **Receipts and delivery totals.** The simulation keeps the newest `receipts.keepNewest` delivery receipts in full (tuning, default 500, at least 1), in the order the ships arrived, and running totals of every delivery since the game began: deliveries, freight tonnes, passengers, freight revenue, fare revenue, and the kilograms and cost of the fuel, food, and water used. Older receipts are dropped as new ones arrive, and when a save loads with a lower `keepNewest`, but they stay counted in the totals, so everything older than the newest N is exactly the totals minus the receipts still kept. The save holds both (section 11.1).
 
@@ -328,6 +332,13 @@ Events at the same tick are processed in this order: (1) arrivals, by ship id; (
 - Active routes are drawn, and ships appear at their actual positions along each leg.
 - Zooming in on a selected ship moves into a close-up of that vessel that keeps its identity and motion, and shows: manifest, crew and passengers, remaining supplies (the read-only in-flight figure in section 6.7, in whole kilograms), installed drive, destination, progress, ETA.
 - Map inspection and route planning stay available while ships travel and while the clock is paused.
+- **Details (owner's decisions, session 12):**
+  - The game opens with the starter ship selected and the whole galaxy in view, not following.
+  - Clicking picks the nearest ship or star within 24 screen pixels; a ship wins a tie. Clicking empty space or pressing Esc clears the selection.
+  - **Follow.** F or the Follow button keeps the selected ship centred through every speed change. Dragging, WASD or the arrow keys, F again, Esc, or selecting something else ends it. Zooming does not end it: the wheel zooms around the followed ship.
+  - **Routes drawn.** Every ship's current leg is drawn, plus the full loop of every active automated route. Paused routes are hidden, except that the selected ship's route is always drawn, even when paused, and a paused one is drawn dimmed. The selected ship's lines are brighter.
+  - **Docked ships.** Up to 5 ship icons are fanned out beside the star; beyond that the star's name shows a count such as "+7". This is drawing only: the ship's position is still exactly the star. Selecting the star lists every docked ship in the system panel.
+  - **Close-up.** It opens with the mouse wheel inwards at the closest zoom while a ship is selected, or with the Close-up button in the ship panel. Wheel outwards, Esc, or the close button leaves it, back at the closest zoom and following the same ship. Time keeps running and the selection stays. For a ship in flight it also shows the locked payout on arrival and the real time left at the current speed (section 3.4); the backdrop streaks. For a docked ship it shows "Docked at X", the supplies aboard, the drive, and the crew, with no ETA, and the backdrop is still.
 
 ### 9.2 System view
 

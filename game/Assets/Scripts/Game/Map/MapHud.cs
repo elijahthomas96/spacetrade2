@@ -14,6 +14,7 @@ namespace SpaceTrade.Game.Map
     /// selected and hovered systems always keep their names.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
+    [DefaultExecutionOrder(100)]
     public sealed class MapHud : MonoBehaviour
     {
         public const string PanelSettingsResource = "UI/GamePanelSettings";
@@ -30,11 +31,20 @@ namespace SpaceTrade.Game.Map
         private VisualElement _root, _labelLayer, _info, _messages;
         private Label _debugLine;
         private readonly List<(StarSystem System, Label Label)> _labels = new List<(StarSystem, Label)>();
+        private readonly List<Label> _countLabels = new List<Label>();
+        private readonly List<(int SystemId, string Text, Rect Rect)> _counts = new List<(int, string, Rect)>();
         private Camera _camera;
         private Simulation _sim;
         private int[] _priority = new int[0];
+        private Label _shipStatus, _shipArrival, _shipProgress;
+        private Button _followButton;
+        private string _dockedKey;
+
+        /// <summary>The map screen, for the ship panel's buttons and the docked-ship counts.</summary>
+        public MapScreen Map { get; set; }
 
         public int SelectedSystemId { get; private set; } = -1;
+        public int SelectedShipId { get; private set; } = -1;
         public int HoveredSystemId { get; set; } = -1;
         public int LabelCount => _labels.Count;
         public int VisibleLabelCount { get; private set; }
@@ -42,6 +52,12 @@ namespace SpaceTrade.Game.Map
         public Rect InfoPanelRect => _info != null ? _info.layout : default;
         public Vector2 PanelSize => _root != null ? _root.layout.size : Vector2.zero;
         public string InfoTitle { get; private set; }
+
+        /// <summary>Every line of text in the info panel, top to bottom.</summary>
+        public IReadOnlyList<string> InfoLines => _info == null ? new string[0] : _info.Query<Label>().ToList().Where(l => l.style.display != DisplayStyle.None).Select(l => l.text).ToArray();
+
+        /// <summary>The "+N" counts for docked ships not drawn, shown in the last frame, with their rectangles in panel pixels.</summary>
+        public IReadOnlyList<(int SystemId, string Text, Rect Rect)> DockedCounts => _counts;
 
         private readonly List<(int SystemId, Rect Rect)> _shown = new List<(int, Rect)>();
 
@@ -81,6 +97,7 @@ namespace SpaceTrade.Game.Map
             _info.style.position = Position.Absolute;
             _info.style.top = 16; _info.style.right = 16;
             _info.style.width = 260;
+            _info.style.overflow = Overflow.Hidden;
             _info.style.backgroundColor = PanelColour;
             SetPadding(_info, 12);
             _info.style.display = DisplayStyle.None;
@@ -143,8 +160,11 @@ namespace SpaceTrade.Game.Map
         public void ShowSystem(int systemId)
         {
             SelectedSystemId = systemId;
+            SelectedShipId = -1;
+            ClearShipRows();
             _info.Clear();
             InfoTitle = null;
+            _dockedKey = null;
             if (systemId < 0 || _sim == null)
             {
                 _info.style.display = DisplayStyle.None;
@@ -153,11 +173,7 @@ namespace SpaceTrade.Game.Map
             var s = _sim.Market.Galaxy.Systems[systemId];
             var tuning = _sim.Market.Tuning;
             InfoTitle = s.Name;
-            var title = new Label(s.Name);
-            title.style.fontSize = 18;
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            title.style.color = TextColour;
-            _info.Add(title);
+            _info.Add(Title(s.Name));
             _info.Add(TextRow($"Population {s.PopulationMillions:N0} million", DimText));
             foreach (var id in s.IndustryIds)
             {
@@ -165,7 +181,97 @@ namespace SpaceTrade.Game.Map
                 _info.Add(IconRow(ArtLibrary.IndustryIcon(id), name, TextColour));
             }
             if (s.HasShipyard) _info.Add(IconRow(ArtLibrary.Get("Map/shipyard_badge"), "Shipyard", BadgeTint));
+            var docked = DockedAt(systemId);
+            _dockedKey = string.Join(",", docked.Select(d => d.Id));
+            if (docked.Count > 0)
+            {
+                _info.Add(TextRow($"Docked here ({docked.Count})", DimText));
+                foreach (var row in _info.Children()) row.style.flexShrink = 0;
+                var list = new ScrollView(ScrollViewMode.Vertical) { name = "docked-list", horizontalScrollerVisibility = ScrollerVisibility.Hidden };
+                list.style.flexShrink = 1;
+                list.style.minHeight = 40;
+                foreach (var ship in docked)
+                    list.Add(IconRow(ArtLibrary.ShipMapIcon(ship.ClassId), $"{ship.Name} · {ShipText.ClassName(_sim, ship)}", TextColour, false));
+                _info.Add(list);
+            }
             _info.style.display = DisplayStyle.Flex;
+        }
+
+        /// <summary>Shows the selected ship's panel: name, class, where it is, and the Follow and Close-up buttons.</summary>
+        public void ShowShip(int shipId)
+        {
+            SelectedSystemId = -1;
+            SelectedShipId = shipId;
+            _info.Clear();
+            InfoTitle = null;
+            _dockedKey = null;
+            ClearShipRows();
+            var ship = _sim?.FindShip(shipId);
+            if (ship == null)
+            {
+                SelectedShipId = -1;
+                _info.style.display = DisplayStyle.None;
+                return;
+            }
+            InfoTitle = ship.Name;
+            _info.Add(Title(ship.Name));
+            _info.Add(IconRow(ArtLibrary.ShipMapIcon(ship.ClassId), ShipText.ClassName(_sim, ship), DimText, false));
+            _shipStatus = TextRow("", TextColour);
+            _shipArrival = TextRow("", DimText);
+            _shipProgress = TextRow("", DimText);
+            _info.Add(_shipStatus);
+            _info.Add(_shipArrival);
+            _info.Add(_shipProgress);
+            var buttons = new VisualElement();
+            buttons.style.flexDirection = FlexDirection.Row;
+            buttons.style.marginTop = 10;
+            _followButton = new Button(() => Map?.ToggleFollow()) { name = "follow" };
+            _followButton.style.backgroundImage = new StyleBackground(ArtLibrary.Get("UI/follow"));
+            _followButton.style.width = 30; _followButton.style.height = 30;
+            buttons.Add(_followButton);
+            var followText = new Label { name = "follow-text" };
+            followText.style.color = TextColour;
+            followText.style.alignSelf = Align.Center;
+            followText.style.marginRight = 12;
+            buttons.Add(followText);
+            var closeUp = new Button(() => Map?.OpenCloseUp()) { name = "close-up", text = "Close-up" };
+            buttons.Add(closeUp);
+            _info.Add(buttons);
+            _info.style.display = DisplayStyle.Flex;
+            RefreshShipRows();
+        }
+
+        private void ClearShipRows()
+        {
+            _shipStatus = _shipArrival = _shipProgress = null;
+            _followButton = null;
+        }
+
+        private void RefreshShipRows()
+        {
+            if (_shipStatus == null || _sim == null) return;
+            var ship = _sim.FindShip(SelectedShipId);
+            if (ship == null) return;
+            var p = _sim.PositionOf(ship.Id);
+            SetText(_shipStatus, ShipText.Status(_sim, ship, p));
+            var arrival = p.InTransit ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_shipArrival.style.display != arrival) _shipArrival.style.display = arrival;
+            SetText(_shipArrival, ShipText.Eta(_sim, p));
+            SetText(_shipProgress, p.InTransit ? "Progress " + ShipText.Progress(_sim, p) : "Mouse wheel in at the closest zoom for the close-up");
+            var followText = _followButton?.parent?.Q<Label>("follow-text");
+            if (followText != null) SetText(followText, Map != null && Map.IsFollowing ? "Following (F)" : "Follow (F)");
+        }
+
+        private static void SetText(Label l, string text)
+        {
+            if (l.text != text) l.text = text;
+        }
+
+        private List<SpaceTrade.Sim.Ships.Ship> DockedAt(int systemId)
+        {
+            var list = new List<SpaceTrade.Sim.Ships.Ship>();
+            foreach (var ship in _sim.Ships) if (ship.DockedSystemId == systemId) list.Add(ship);
+            return list;
         }
 
         /// <summary>True when the screen point (pixels, origin bottom left) is over a panel that takes clicks.</summary>
@@ -182,6 +288,11 @@ namespace SpaceTrade.Game.Map
         {
             if (_camera == null || _labels.Count == 0 || _labelLayer.panel == null) return;
             var panel = _labelLayer.panel;
+            float tallest = _root.layout.height - 32f;
+            if (!float.IsNaN(tallest) && tallest > 0f && _info.style.maxHeight.value.value != tallest) _info.style.maxHeight = tallest;
+            if (SelectedShipId >= 0) RefreshShipRows();
+            if (SelectedSystemId >= 0 && _dockedKey != string.Join(",", DockedAt(SelectedSystemId).Select(d => d.Id))) ShowSystem(SelectedSystemId);
+            PlaceDockedCounts(panel);
             var placed = new List<Rect>();
             _shown.Clear();
             var order = new List<int>();
@@ -234,6 +345,51 @@ namespace SpaceTrade.Game.Map
             StarRects = stars;
         }
 
+        /// <summary>Puts a "+N" under each star with more docked ships than the map draws beside it.</summary>
+        private void PlaceDockedCounts(IPanel panel)
+        {
+            _counts.Clear();
+            var overflow = Map != null && Map.Ships != null ? Map.Ships.Overflow : null;
+            int n = overflow?.Count ?? 0;
+            float below = ShipMapView.OverflowBelowPixels;
+            for (int i = 0; i < n; i++)
+            {
+                if (i == _countLabels.Count)
+                {
+                    var l = new Label { pickingMode = PickingMode.Ignore };
+                    l.style.position = Position.Absolute;
+                    l.style.color = BadgeTint;
+                    l.style.fontSize = 12;
+                    l.style.unityTextAlign = TextAnchor.MiddleCenter;
+                    l.style.width = 40;
+                    l.style.height = LabelHeightPixels;
+                    SetPadding(l, 0);
+                    _labelLayer.Add(l);
+                    _countLabels.Add(l);
+                }
+                var (systemId, hidden) = overflow[i];
+                var label = _countLabels[i];
+                string text = "+" + hidden;
+                SetText(label, text);
+                Vector2 star = RuntimePanelUtils.CameraTransformWorldToPanel(panel, GalaxyMapView.WorldPosition(_sim.Market.Galaxy.Systems[systemId]), _camera);
+                var rect = new Rect(star.x - 20f, star.y + below - LabelHeightPixels / 2f, 40f, LabelHeightPixels);
+                label.style.left = rect.x;
+                label.style.top = rect.y;
+                label.style.visibility = Visibility.Visible;
+                _counts.Add((systemId, text, rect));
+            }
+            for (int i = n; i < _countLabels.Count; i++) _countLabels[i].style.visibility = Visibility.Hidden;
+        }
+
+        private static Label Title(string text)
+        {
+            var title = new Label(text);
+            title.style.fontSize = 18;
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            title.style.color = TextColour;
+            return title;
+        }
+
         private static Rect Inflate(Rect r, float by) => new Rect(r.x - by, r.y - by, r.width + 2 * by, r.height + 2 * by);
 
         private static Label TextRow(string text, Color colour)
@@ -241,16 +397,17 @@ namespace SpaceTrade.Game.Map
             var l = new Label(text);
             l.style.color = colour;
             l.style.marginTop = 4;
+            l.style.whiteSpace = WhiteSpace.Normal;
             return l;
         }
 
-        private static VisualElement IconRow(Sprite icon, string text, Color tint)
+        private static VisualElement IconRow(Sprite icon, string text, Color tint, bool tintIcon = true)
         {
             var row = new VisualElement();
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
             row.style.marginTop = 6;
-            var image = new Image { sprite = icon, tintColor = tint, scaleMode = ScaleMode.ScaleToFit };
+            var image = new Image { sprite = icon, tintColor = tintIcon ? tint : Color.white, scaleMode = ScaleMode.ScaleToFit };
             image.style.width = 20;
             image.style.height = 20;
             image.style.marginRight = 8;

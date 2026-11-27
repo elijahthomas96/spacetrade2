@@ -51,5 +51,16 @@ namespace SpaceTrade.Sim
             if (denominator <= 0) throw new ArgumentOutOfRangeException(nameof(denominator), "Denominator must be positive.");
             return (long)((numerator + denominator - 1) / denominator);
         }
+
+        /// <summary>
+        /// Exact division rounded down, for figures shown on screen that must never come out ahead: a voyage's progress
+        /// and distance flown (spec 5.5), so 100 percent appears only once the ship has docked. Display only.
+        /// </summary>
+        public static long DivideFloor(BigInteger numerator, BigInteger denominator)
+        {
+            if (numerator < 0) throw new ArgumentOutOfRangeException(nameof(numerator), "Numerator cannot be negative.");
+            if (denominator <= 0) throw new ArgumentOutOfRangeException(nameof(denominator), "Denominator must be positive.");
+            return (long)(numerator / denominator);
+        }
     }
 }

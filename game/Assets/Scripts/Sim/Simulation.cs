@@ -276,6 +276,19 @@ namespace SpaceTrade.Sim
             return ship.Voyage == null ? aboard : aboard - ship.Voyage.UsedSoFarKg(kind, CurrentTick);
         }
 
+        /// <summary>
+        /// Where a ship is now, for display only (spec 9.1): its star while docked, otherwise its place along the leg worked
+        /// out from the locked voyage terms and the current tick. Never stored; changes nothing.
+        /// </summary>
+        public ShipPosition PositionOf(int shipId)
+        {
+            var ship = FindShip(shipId) ?? throw new ArgumentException($"There is no ship with id {shipId}.", nameof(shipId));
+            var systems = Market.Galaxy.Systems;
+            var v = ship.Voyage;
+            if (v == null) return new ShipPosition(ship.Id, systems[ship.DockedSystemId.Value]);
+            return new ShipPosition(ship.Id, v, systems[v.OriginId], systems[v.DestinationId], CurrentTick);
+        }
+
         /// <summary>Every stored value in a fixed text layout: clock, credits, ships and voyages, receipts, events, and market.</summary>
         public string DescribeState()
         {

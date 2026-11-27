@@ -5,11 +5,13 @@ namespace SpaceTrade.Game.Map
 {
     /// <summary>
     /// Map controls (spec 9.5): hold right or middle mouse and drag, or WASD / arrow keys, to pan; mouse wheel to zoom;
-    /// left click to select a system (empty space clears it); Esc clears the selection.
+    /// left click to select a system or ship (empty space clears it); F to follow the selected ship; Esc clears the
+    /// selection. Panning by hand ends follow mode; zooming while following zooms around the ship. Wheeling in at the
+    /// closest zoom with a ship selected opens its close-up; wheeling out or Esc closes it.
     /// </summary>
     public sealed class MapInput : MonoBehaviour
     {
-        /// <summary>How close to a star, in screen pixels, a click must be to select it.</summary>
+        /// <summary>How close to a star or ship, in screen pixels, a click must be to select it.</summary>
         public const float PickPixels = 24f;
         /// <summary>Keyboard pan speed, in screen heights per real second.</summary>
         public const float KeyPanScreensPerSecond = 0.8f;
@@ -31,6 +33,15 @@ namespace SpaceTrade.Game.Map
             var keyboard = KeyboardDevice ?? Keyboard.current;
             var cam = Map.Camera;
 
+            if (Map.IsCloseUpOpen)
+            {
+                _dragFrom = null;
+                bool wheelOut = mouse != null && mouse.scroll.ReadValue().y < 0f;
+                bool esc = keyboard != null && keyboard.escapeKey.wasPressedThisFrame;
+                if (wheelOut || esc) Map.CloseCloseUp();
+                return;
+            }
+
             if (mouse != null)
             {
                 Vector2 pos = mouse.position.ReadValue();
@@ -41,19 +52,29 @@ namespace SpaceTrade.Game.Map
                 float scroll = mouse.scroll.ReadValue().y;
                 if (scroll != 0f && !overPanel)
                 {
-                    float notches = Mathf.Abs(scroll) >= 10f ? scroll / 120f : scroll;
-                    cam.ZoomAt(Mathf.Pow(ZoomPerNotch, Mathf.Clamp(notches, -5f, 5f)), pos);
+                    bool atClosest = cam.Camera.orthographicSize <= cam.MinSize + 1e-4f;
+                    if (scroll > 0f && atClosest && Map.SelectedShipId >= 0) Map.OpenCloseUp();
+                    else
+                    {
+                        float notches = Mathf.Abs(scroll) >= 10f ? scroll / 120f : scroll;
+                        Vector2 around = Map.IsFollowing ? (Vector2)cam.Camera.WorldToScreenPoint(cam.Centre) : pos;
+                        cam.ZoomAt(Mathf.Pow(ZoomPerNotch, Mathf.Clamp(notches, -5f, 5f)), around);
+                    }
                 }
 
                 bool dragging = mouse.rightButton.isPressed || mouse.middleButton.isPressed;
                 if (dragging)
                 {
-                    if (_dragFrom.HasValue) cam.DragPixels(pos - _dragFrom.Value);
+                    if (_dragFrom.HasValue && pos != _dragFrom.Value)
+                    {
+                        Map.StopFollowing();
+                        cam.DragPixels(pos - _dragFrom.Value);
+                    }
                     _dragFrom = pos;
                 }
                 else _dragFrom = null;
 
-                if (mouse.leftButton.wasPressedThisFrame && !overPanel) Map.Select(Map.View.PickSystem(pos, PickPixels));
+                if (mouse.leftButton.wasPressedThisFrame && !overPanel) Map.ClickAt(pos);
             }
 
             if (keyboard != null)
@@ -64,7 +85,11 @@ namespace SpaceTrade.Game.Map
                 if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) dir.y -= 1f;
                 if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) dir.y += 1f;
                 if (dir != Vector2.zero)
+                {
+                    Map.StopFollowing();
                     cam.PanWorld(dir.normalized * (2f * cam.Camera.orthographicSize * KeyPanScreensPerSecond * Time.unscaledDeltaTime));
+                }
+                if (keyboard.fKey.wasPressedThisFrame) Map.ToggleFollow();
                 if (keyboard.escapeKey.wasPressedThisFrame) Map.Select(-1);
             }
         }

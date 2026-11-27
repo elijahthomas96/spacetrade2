@@ -114,7 +114,8 @@ Rules that apply to every session (also in `AGENTS.md`):
 ### Session 12: ships on the map
 
 - Ships drawn at true positions along their legs, active routes drawn, ship selection, follow mode, and the zoom-in close-up with the vessel panel (spec 9.1).
-- **Done when:** in Play mode with a test voyage, the ship's map position matches its simulated progress, follow keeps it centred, and the close-up shows live values.
+- **Done when:** in Play mode with a test voyage, the ship's map position matches its simulated progress, follow keeps it centred, and the close-up shows live values. At 12 and 50 systems, with 1 ship and with 50 ships in flight, at 1x, 3x, and 5x, no ordinary frame takes longer than 50 ms, measured with the Unity window focused and reported.
+- **The 50 ms rule and one-off frames (owner's decision, session 12; applies wherever the 50 ms rule appears).** A one-off frame is a single frame that does a one-time job: building a new game, and from session 17 loading a save. One-off frames do not count toward the 50 ms rule. Each one is measured and reported with its time at 12 and at 50 systems. If any one-off frame takes longer than 250 ms, stop and report it to the owner instead of carrying on.
 
 ### Session 13: top bar, notifications, sound
 
@@ -142,7 +143,7 @@ Rules that apply to every session (also in `AGENTS.md`):
 
 - Title screen, new game, load, save slots, load demo, settings, quit. Offline return summary panel. Debug skip button shown only under the rules in spec 13.
 - Saving, autosave, and offline catch-up are wired to the screen here (session 11 runs an unsaved game in memory). The screen must not freeze: open saves with `GameSession.BeginOpen`, run the catch-up in slices with a progress percentage on screen, and keep autosaves from stalling a frame. If an autosave takes longer than the limit below, writing the file moves off the drawing step.
-- **Done when:** the agent saves mid-transit, stops Play, restarts, and sees a correct return summary; a paused save returns paused; and at 12 and 50 systems no frame during a catch-up or an autosave takes longer than 50 ms, measured and reported.
+- **Done when:** the agent saves mid-transit, stops Play, restarts, and sees a correct return summary; a paused save returns paused; and at 12 and 50 systems no frame during a catch-up or an autosave takes longer than 50 ms, measured and reported. One-off frames (loading a save, building a new game) follow the session 12 rule: they do not count toward the 50 ms, each is reported with its time at 12 and 50 systems, and any one over 250 ms means stop and report it.
 
 ## Phase C: balance, proof, delivery
 

@@ -19,9 +19,9 @@
 
 - A new industry with id `x` loads `Icons\industry_x.png`.
 - A new commodity with id `x` loads `Icons\cargo_x.png`.
-- Ship icons follow the same pattern from session 12: a new ship class with id `x` loads `Ships\x_map.png` and `Ships\x_closeup.png`.
+- Ship icons follow the same pattern (since session 12): a new ship class with id `x` loads `Ships\x_map.png` and `Ships\x_closeup.png`.
 - Any of these with no file yet gets an automatic stand-in (a plain white ring with a cross), with no error, until you add the file.
-- The defaults keep the names below. Four industries were named before their ids existed and are mapped in the game code: `mining_colony` to `industry_mining.png`, `agricultural_system` to `industry_agriculture.png`, `population_hub` to `industry_population.png`, `shipyard_works` to `industry_shipyard.png`. Session 12 does the same for the default ship classes `bulk_freighter` (`freighter_*`) and `passenger_liner` (`liner_*`).
+- The defaults keep the names below. Four industries were named before their ids existed and are mapped in the game code: `mining_colony` to `industry_mining.png`, `agricultural_system` to `industry_agriculture.png`, `population_hub` to `industry_population.png`, `shipyard_works` to `industry_shipyard.png`. The default ship classes are mapped the same way (done in session 12): `bulk_freighter` to `freighter_*` and `passenger_liner` to `liner_*`; `courier` already matches.
 - Drop the file in, with the exact name, and Unity picks it up with the right import settings automatically.
 
 ## 1. Ships

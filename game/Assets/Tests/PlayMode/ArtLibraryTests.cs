@@ -82,8 +82,28 @@ namespace SpaceTrade.Game.Tests
         }
 
         [Test]
+        public void EveryShipClassInTheFixture_FindsItsMapAndCloseUpFiles()
+        {
+            var t = GameTestTuning.Load();
+            var keys = t.Ships.Select(s => ArtLibrary.ShipMapIconKey(s.Id)).Concat(t.Ships.Select(s => ArtLibrary.ShipCloseUpKey(s.Id))).ToList();
+            CollectionAssert.AreEqual(
+                new[] { "Ships/courier_map", "Ships/freighter_map", "Ships/liner_map", "Ships/courier_closeup", "Ships/freighter_closeup", "Ships/liner_closeup" },
+                keys);
+            CollectionAssert.IsEmpty(keys.Where(k => !ArtLibrary.HasFile(k)).ToList());
+            foreach (var s in t.Ships)
+            {
+                Assert.IsFalse(ArtLibrary.IsStandIn(ArtLibrary.ShipMapIcon(s.Id)), s.Id);
+                Assert.IsFalse(ArtLibrary.IsStandIn(ArtLibrary.ShipCloseUp(s.Id)), s.Id);
+            }
+        }
+
+        [Test]
         public void NewIds_LookUpByTheirId_AndGetAStandIn_WithNoConsoleMessage()
         {
+            Assert.AreEqual("Ships/tug_map", ArtLibrary.ShipMapIconKey("tug"));
+            Assert.AreEqual("Ships/tug_closeup", ArtLibrary.ShipCloseUpKey("tug"));
+            Assert.IsTrue(ArtLibrary.IsStandIn(ArtLibrary.ShipMapIcon("tug")));
+            Assert.IsTrue(ArtLibrary.IsStandIn(ArtLibrary.ShipCloseUp("tug")));
             Assert.AreEqual("Icons/industry_ice_harvester", ArtLibrary.IndustryIconKey("ice_harvester"));
             Assert.AreEqual("Icons/cargo_luxury_goods", ArtLibrary.CommodityIconKey("luxury_goods"));
             var industry = ArtLibrary.IndustryIcon("ice_harvester");

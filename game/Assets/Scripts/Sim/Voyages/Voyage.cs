@@ -104,10 +104,13 @@ namespace SpaceTrade.Sim.Voyages
         public long UsedSoFarKg(SupplyKind kind, long tick)
         {
             long use = UseKg(kind);
-            long elapsed = Math.Min(Math.Max(0, tick - DepartureTick), TransitTicks);
+            long elapsed = ElapsedTicks(tick);
             if (elapsed == TransitTicks) return use;
             return IntMath.DivideRounded((BigInteger)use * elapsed, TransitTicks);
         }
+
+        /// <summary>Ticks flown by <paramref name="tick"/>: never below 0, never above the transit ticks.</summary>
+        public long ElapsedTicks(long tick) => Math.Min(Math.Max(0, tick - DepartureTick), TransitTicks);
 
         /// <summary>Every stored value in a fixed text layout, for comparing states exactly.</summary>
         public string DescribeState()

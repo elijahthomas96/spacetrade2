@@ -21,6 +21,16 @@ namespace SpaceTrade.Game.Art
             { "shipyard_works", "industry_shipyard" },
         };
 
+        /// <summary>
+        /// The two default ship classes whose image files were named before their tuning ids existed. Every other class id x,
+        /// including any added to tuning.json later, loads Ships/x_map and Ships/x_closeup.
+        /// </summary>
+        private static readonly Dictionary<string, string> ShipFileForDefaultClass = new Dictionary<string, string>
+        {
+            { "bulk_freighter", "freighter" },
+            { "passenger_liner", "liner" },
+        };
+
         private static Dictionary<string, Sprite> _sprites;
         private static readonly Dictionary<string, Sprite> StandIns = new Dictionary<string, Sprite>();
 
@@ -75,6 +85,16 @@ namespace SpaceTrade.Game.Art
         public static Sprite IndustryIcon(string industryId) => Get(IndustryIconKey(industryId));
 
         public static Sprite CommodityIcon(string commodityId) => Get(CommodityIconKey(commodityId));
+
+        private static string ShipFile(string classId) => ShipFileForDefaultClass.TryGetValue(classId, out var file) ? file : classId;
+
+        public static string ShipMapIconKey(string classId) => "Ships/" + ShipFile(classId) + "_map";
+
+        public static string ShipCloseUpKey(string classId) => "Ships/" + ShipFile(classId) + "_closeup";
+
+        public static Sprite ShipMapIcon(string classId) => Get(ShipMapIconKey(classId));
+
+        public static Sprite ShipCloseUp(string classId) => Get(ShipCloseUpKey(classId));
 
         /// <summary>A white ring with a cross on transparent, so code can tint it like the real icons.</summary>
         private static Sprite MakeStandIn(string key)

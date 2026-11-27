@@ -20,9 +20,10 @@ namespace SpaceTrade.Game.Tests
         }
 
         /// <summary>A new game from the fixture with exactly <paramref name="systems"/> systems, adding "System 013" and so on as names.</summary>
-        public static Simulation NewGameWithSystems(int systems, long seed = 1)
+        public static Simulation NewGameWithSystems(int systems, long seed = 1, System.Action<TuningData> change = null)
         {
             var t = Load();
+            change?.Invoke(t);
             t.Galaxy.SystemCountMin = systems;
             t.Galaxy.SystemCountMax = systems;
             var names = new List<string>(t.Galaxy.Names);
