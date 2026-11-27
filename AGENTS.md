@@ -11,6 +11,15 @@ A single-player Windows space trading simulator. Unity 6.6, C#. The Unity projec
 - `docs/progress.md`: what is done, what is next, decisions made. You keep this current.
 - `docs/eli-tasks.md`: the owner's list, including the exact filenames for every art and audio file.
 
+## Start of every session
+
+Before any work:
+
+1. Confirm the git tree is clean and `main` matches `origin/main`.
+2. Report Unity's memory use.
+3. Run both full test suites (EditMode and PlayMode) twice each, with the console cleared first and every message type read.
+4. Compare the counts with those recorded in `docs/progress.md` for the last session. If anything differs, stop and tell the owner.
+
 ## Working rules
 
 1. Do one session from `docs/plan.md` per chat. Show a plan and wait for the owner's OK before changing anything.
@@ -19,6 +28,21 @@ A single-player Windows space trading simulator. Unity 6.6, C#. The Unity projec
 4. If the spec is unclear, contradictory, or looks wrong, stop and ask. Do not substitute a different design.
 5. End every session by updating `docs/progress.md`, committing, and pushing.
 6. The owner is not a programmer. Explain decisions and problems in plain language, and define jargon the first time you use it.
+7. Questions for the owner come with options and a recommendation.
+8. No test is weakened, skipped, or deleted to make it pass.
+9. Any frame over 250 ms stops the session, whatever the cause. Stop and report it to the owner. Ordinary frames stay under 50 ms.
+10. The owner's art, audio, and art-source files (`game/Assets/Art`, `game/Assets/Audio`, `art-source/`) are never overwritten, renamed, moved, or deleted. Every final report confirms they are unchanged.
+
+## Final report
+
+Every final report gives:
+
+- Real test counts from both double runs (EditMode twice, PlayMode twice).
+- Console output.
+- Screenshots for screen work.
+- Unity's memory use at the start and at the end.
+- Confirmation that the owner's art, audio, and art-source files are unchanged.
+- Anything the owner must decide before the next session.
 
 ## Hard technical rules
 
@@ -32,6 +56,7 @@ A single-player Windows space trading simulator. Unity 6.6, C#. The Unity projec
 - Art and audio load from the fixed filenames in `docs/eli-tasks.md`. Create a placeholder for each. Never rename or delete a file the owner has replaced.
 - Tests use the fixed test tuning fixture, not the live `tuning.json`.
 - Every colour, font, text size, spacing value, glow size, label rule, display limit, and camera or control feel value comes from the theme file, `game/Assets/StreamingAssets/theme.json`, read through `Theme`. No screen hard-codes these values, and `ThemeGuardTests` must pass. Every field is explained in `docs/theme-guide.md`. Tests use the fixed test theme fixture, not the live `theme.json`.
+- Only one side panel is open at a time. Opening another replaces it, closing it brings back the one it replaced, and Esc closes the top one.
 - The project enters Play mode without reloading code. Anything in SpaceTrade.Game kept in static fields or caches must be reset at the start of every Play session. PlayMode results count only from the full suite run twice in a row, with the console cleared first and every message type read.
 
 ## Do not

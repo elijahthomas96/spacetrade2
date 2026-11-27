@@ -1,19 +1,15 @@
 # spacetrade2: build plan
 
-Version 1.0, 2026-11-24. Built in Cursor with Opus 5.5 (high), using the Unity MCP server to drive the Unity 6.6 Editor. `spec.md` says what to build; this file says in what order.
+Version 1.0, 2026-11-24. Built with Claude Code, using the Unity MCP server to drive the Unity 6.6 Editor. Sessions 1 to 13 were built in Cursor with Opus 5.5 (high); the project moved to Claude Code on 2026-11-27, before session 14. `spec.md` says what to build; this file says in what order.
 
 ## How to run a session
 
-One session = one fresh Cursor agent chat = one numbered task below. Do not carry a chat across tasks. A fresh chat keeps the agent's context small, which keeps it accurate and uses fewer credits.
+One session = one fresh Claude Code session = one numbered task below. Do not carry a chat across tasks. A fresh chat keeps the agent's context small, which keeps it accurate and uses fewer credits. There is no separate "main agent" checking the work afterwards: the one session does its own start-of-session checks and its own final report (both in `AGENTS.md`).
 
 Paste this to start each session, changing only the number:
 
 ```
-Read AGENTS.md, docs/spec.md, docs/plan.md, and docs/progress.md.
-Do session N from docs/plan.md and nothing else.
-First show me your plan for this session and wait for my OK.
-After my OK: do the work, run the checks listed under "Done when", and show me the real results (test counts, console output), not a summary of what you expect.
-Then update docs/progress.md, commit, push, and give me the one-line status plus anything I need to decide before session N+1.
+Read AGENTS.md, docs/spec.md, docs/plan.md, and docs/progress.md. Do the start-of-session checks. Then do session N from docs/plan.md and nothing else. Show me your plan and questions and wait for my OK.
 ```
 
 Rules that apply to every session (also in `AGENTS.md`):
@@ -178,5 +174,5 @@ Rules that apply to every session (also in `AGENTS.md`):
 
 - **A session runs long or the agent starts repeating itself:** stop it, have it write what is done and not done in `docs/progress.md`, commit, and start a fresh chat on the same session number.
 - **A session breaks earlier work:** the full test suite catches it. Each session ends with a commit, so the previous good state is always one `git` step back.
-- **MCP stops responding:** restart the Unity Editor, check the MCP server is listed as connected in Cursor's settings, then start a fresh chat.
+- **MCP stops responding:** restart the Unity Editor, check the MCP server is listed as connected in Claude Code (type `/mcp`), then start a fresh chat.
 - **Credits running low:** Phase A is the part that must be right. If credits are tight, finish Phase A and Checkpoint A before starting any interface session.

@@ -8,6 +8,7 @@ The agent updates this file at the end of every session.
 - Next session: 14 (system view, planner, receipt)
 - Checkpoint A: reached and reviewed by the owner (status below)
 - Unity Editor version: `6000.6.10f1 (40e81493c67d)` (Unity 6.6)
+- Builder: Claude Code from session 14 on (sessions 1 to 13 were built in Cursor). See "Move to Claude Code" below.
 
 ## Session log
 
@@ -285,6 +286,31 @@ The counts the sub-agent said in chat, the counts it committed, and the main age
 **Screenshots retaken (current look).** The two taken before the see-through fix were kept under new names, `04-old-see-through-notification-list-before-fix.png` and `06-old-see-through-settings-panel-before-fix.png`. New: `04-notification-list-open-after-debug-skips.png` (12 systems, seed 7, four debug skips, six notifications, solid panel), `06-settings-panel-open-master-55-music-20-muted.png`, and `08-settings-panel-open-default-80-80-60-not-muted.png`. For screenshot 06 the real `settings.json` was changed and then put back; it is byte-identical to before (checked by hash). Console during this Play session: 0 entries of any type. One thing the pictures show: when a ship is selected, the settings panel opens over the top of the ship panel in the same colour and width, so the ship panel's Follow and Close-up buttons appear directly under the mute button as if they were part of settings. Nothing is see-through; it is a layout question for the owner.
 
 **Listening checklist.** Added to `docs/eli-tasks.md` section 5b: how to trigger the 12 sounds that have a control today, which session makes each of the other 12 hearable, and how to test mute, each slider, and that settings are remembered.
+
+## Move to Claude Code (2026-11-27)
+
+Sessions 1 to 13 were built in Cursor. From session 14 on the project is built in Claude Code. No code, test, art, or audio file changed in the move; it is one docs-only commit.
+
+**Owner's decisions.**
+- **One fresh session per plan session, with no main agent.** In Cursor a "main agent" handed each session to a sub-agent and then repeated its test runs. That is gone. Each plan session is one fresh Claude Code session, which does the start-of-session checks itself (clean tree matching origin, Unity's memory use, both full suites twice with the console cleared, counts compared with the last session's in this file) and gives the full final report itself. Both lists are in `AGENTS.md`.
+- **Default volumes stay at 80 / 80 / 60** (master, effects, music). Session 13 recorded these as the agent's choice; the owner has now confirmed them.
+- **New rules in `AGENTS.md`:** any frame over 250 ms stops the session whatever the cause, and ordinary frames stay under 50 ms; only one side panel is open at a time (opening another replaces it, closing it brings back the one it replaced, Esc closes the top one; also in `docs/theme-guide.md`); the owner's art, audio, and art-source files are never overwritten, renamed, moved, or deleted, and every final report confirms it; questions come with options and a recommendation; no test is weakened, skipped, or deleted to make it pass; and what every final report must contain.
+- **The starter prompt** in `docs/plan.md` under "How to run a session" was replaced with the shorter one that points at the start-of-session checks.
+
+**Setup check in Claude Code (observed 2026-11-27, at commit `01472ef`, before any change).** `AGENTS.md` was loaded automatically, so no `CLAUDE.md` was added. Tree clean, `main` equal to `origin/main`. The Unity MCP server responded and reported Editor `6000.6.10f1`. 61 `.png` under `game/Assets/Art`, 20 `.wav` and 4 `.ogg` under `game/Assets/Audio`. Console cleared before each run and every message type read after it:
+
+| Run | Passed | Failed | Skipped | Total | Console |
+|---|---|---|---|---|---|
+| EditMode 1 | 507 | 0 | 25 | 532 | 4 log lines, the same four as session 13; no error, warning, or assert |
+| EditMode 2 | 507 | 0 | 25 | 532 | the same 4 lines |
+| PlayMode 1 | 102 | 0 | 0 | 102 | 11 log lines (4 from the test runner and MCP, the 7 `[sound]` lines); no error, warning, or assert |
+| PlayMode 2 | 102 | 0 | 0 | 102 | the same 11 lines (frame numbers 41 higher) |
+
+Unity's memory: the main Unity process used 1.72 GB before the four runs and 1.91 GB after; a second, helper Unity process stayed at about 1.1 GB.
+
+**Where screenshots go.** The session 12 and 13 screenshots are in Cursor's folder (`C:\Users\Elijah\.cursor\projects\d-dev-spacetrade2\`), outside the repository, and stay there. Session 14 should ask the owner where new screenshots go.
+
+**The settings panel over the ship panel.** The layout question noted in the main agent's check of session 13 (the settings panel opening over the ship panel) is settled by the one-side-panel rule above. No code follows that rule yet; it is for the sessions that build or touch panels, starting with session 14.
 
 ## Decisions made during the build
 

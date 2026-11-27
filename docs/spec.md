@@ -9,7 +9,7 @@ spacetrade2 is a single-player Windows game about running an interstellar transp
 | Topic | Decision |
 |---|---|
 | Engine | Unity 6.6 (record the exact Editor version string in `README.md`), C# |
-| Builder | Cursor agent running Opus 5.5, driving the Unity Editor through the Unity MCP server |
+| Builder | Claude Code, driving the Unity Editor through the Unity MCP server. Sessions 1 to 13 were built by a Cursor agent running Opus 5.5; from session 14 on the builder is Claude Code |
 | Project location | `D:\dev\spacetrade2`, Unity project in the `game` subfolder |
 | Goal structure | Pure sandbox. No win state, no lose state, no milestone list |
 | Visual style | Clean vector look: simple shapes and icons on a dark background. Agent builds with placeholder art; Eli replaces files later |

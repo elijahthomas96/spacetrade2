@@ -4,6 +4,8 @@ Things for you to do while the agent builds. None of the art or sound work block
 
 ## 1. Before session 1
 
+Sessions 1 to 13 were built in Cursor, so the Cursor steps below are kept as the record of what was done. From session 14 on the agent is Claude Code: open the folder `D:\dev\spacetrade2` (the top folder, not `game`) in Claude Code, and check the Unity MCP server is connected by typing `/mcp`.
+
 - [x] In Unity Hub, create a new project with Unity 6.6 using the **Universal 2D** template. Location: `D:\dev\spacetrade2`. Project name: `game`. Result: `D:\dev\spacetrade2\game`.
 - [x] Add the Unity MCP package to that new project (the same way you connected it before; the connection is per project) and confirm Cursor shows the MCP server as connected.
 - [x] In Cursor, open the folder `D:\dev\spacetrade2` (the top folder, not `game`), so the agent sees `AGENTS.md` and `docs`.
@@ -12,7 +14,7 @@ Things for you to do while the agent builds. None of the art or sound work block
 
 ## 2. During the build
 
-- [ ] Start each session with the prompt in `plan.md`, changing the session number. One fresh chat per session.
+- [ ] Start each session with the prompt in `plan.md`, changing the session number. One fresh Claude Code session per plan session.
 - [ ] Read the agent's plan before saying OK. Push back if it wants to do more than the one session.
 - [ ] After session 3: open `game\Assets\StreamingAssets\tuning.json` next to `docs\tuning-guide.md` and get familiar with it. Do not change values yet.
 - [ ] At Checkpoint A (after session 10): review the default tuning values. This is the cheapest moment to change the feel of the economy.

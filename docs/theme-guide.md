@@ -86,6 +86,8 @@ All are colours. Art files are drawn in their own colours multiplied by the colo
 
 Spacing shared by the panels on the map. All in pixels.
 
+**One side panel at a time (owner's rule, 2026-11-27).** Only one side panel is open at a time. Opening another replaces it, closing it brings back the one it replaced, and Esc closes the top one. This is a fixed rule of how the screens behave, not a value in the theme file, so there is no field for it.
+
 | Field | Default | What it does |
 |---|---|---|
 | `panels.margin` | `16` | The gap between a panel and the edge of the screen. |
