@@ -5,6 +5,7 @@ using SpaceTrade.Game.Hud;
 using SpaceTrade.Game.Settings;
 using SpaceTrade.Game.Theming;
 using SpaceTrade.Sim;
+using SpaceTrade.Sim.Voyages;
 using UnityEngine;
 
 namespace SpaceTrade.Game.Map
@@ -37,6 +38,11 @@ namespace SpaceTrade.Game.Map
         public int SelectedShipId { get; private set; } = -1;
         public bool IsFollowing { get; private set; }
         public bool IsCloseUpOpen => CloseUp != null && CloseUp.IsOpen;
+
+        /// <summary>The work panels in the side slot: the planner and the receipt, over the selection's own panel.</summary>
+        public WorkPanels Panels => Bar.Panels;
+        public VoyagePlanner Planner => Bar.Planner;
+        public ReceiptPanel Receipt => Bar.Receipt;
 
         public static MapScreen Create(Camera camera)
         {
@@ -88,6 +94,7 @@ namespace SpaceTrade.Game.Map
         /// <summary>Selects a system by id, or clears the selection with -1. Either ends follow mode.</summary>
         public void Select(int systemId)
         {
+            DropWorkPanels();
             SelectedShipId = -1;
             Ships.SelectedShipId = -1;
             IsFollowing = false;
@@ -99,7 +106,11 @@ namespace SpaceTrade.Game.Map
         public void SelectShip(int shipId)
         {
             if (Simulation?.FindShip(shipId) == null) { Select(-1); return; }
-            if (shipId != SelectedShipId) IsFollowing = false;
+            if (shipId != SelectedShipId)
+            {
+                IsFollowing = false;
+                DropWorkPanels();
+            }
             View.Select(-1);
             SelectedShipId = shipId;
             Ships.SelectedShipId = shipId;
@@ -151,6 +162,60 @@ namespace SpaceTrade.Game.Map
             return true;
         }
 
+        /// <summary>The planner and receipt belong to what was selected; when the selection changes they go, without a sound.</summary>
+        private void DropWorkPanels()
+        {
+            if (Bar == null || Bar.Panels == null) return;
+            Bar.Panels.Drop(Bar.Planner);
+            Bar.Panels.Drop(Bar.Receipt);
+        }
+
+        /// <summary>Opens the voyage planner for the selected ship, in the ship panel's place. Only a docked ship can be planned for.</summary>
+        public bool OpenPlanner()
+        {
+            var ship = Simulation?.FindShip(SelectedShipId);
+            if (ship == null || ship.IsInTransit) return false;
+            if (CloseUp.IsOpen) CloseCloseUp();
+            if (Panels.Top != Planner || Planner.ShipId != ship.Id) Planner.Open(ship.Id);
+            Panels.Show(Planner);
+            return true;
+        }
+
+        public void ClosePlanner() => Panels.Close(Planner);
+
+        /// <summary>The newest receipt the simulation still keeps for this ship, or null.</summary>
+        public VoyageReceipt LastReceiptOf(int shipId)
+        {
+            if (Simulation == null) return null;
+            var receipts = Simulation.Receipts;
+            for (int i = receipts.Count - 1; i >= 0; i--)
+                if (receipts[i].ShipId == shipId) return receipts[i];
+            return null;
+        }
+
+        /// <summary>The receipt of the arrival a notification announced, if the simulation still keeps it.</summary>
+        public VoyageReceipt ReceiptOf(Notification arrival)
+        {
+            if (Simulation == null || arrival == null || arrival.Kind != NotificationKind.Arrival) return null;
+            var receipts = Simulation.Receipts;
+            for (int i = receipts.Count - 1; i >= 0; i--)
+                if (receipts[i].ShipId == arrival.ShipId && receipts[i].ArrivalTick == arrival.Tick) return receipts[i];
+            return null;
+        }
+
+        /// <summary>Opens a receipt in the work panel's place.</summary>
+        public bool OpenReceipt(VoyageReceipt receipt)
+        {
+            if (receipt == null) return false;
+            if (CloseUp.IsOpen) CloseCloseUp();
+            Receipt.Show(receipt);
+            Panels.Show(Receipt);
+            return true;
+        }
+
+        /// <summary>The Last receipt button on the ship panel.</summary>
+        public bool OpenLastReceipt() => OpenReceipt(LastReceiptOf(SelectedShipId));
+
         public void SetFollowing(bool on) => IsFollowing = on && SelectedShipId >= 0;
 
         /// <summary>The player's own follow switch (the F key or the Follow button): it plays the toggle sound.</summary>
@@ -168,6 +233,7 @@ namespace SpaceTrade.Game.Map
         public void OpenCloseUp()
         {
             if (SelectedShipId < 0 || Simulation == null) return;
+            DropWorkPanels();
             bool wasOpen = CloseUp.IsOpen;
             Camera.Camera.orthographicSize = Camera.MinSize;
             IsFollowing = true;

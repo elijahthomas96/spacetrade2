@@ -31,6 +31,22 @@ namespace SpaceTrade.Sim
             return string.Format(CultureInfo.InvariantCulture, "{0} s", s);
         }
 
+        /// <summary>
+        /// Game ticks as game years and days, exactly, with no rounding: "3 y 0 d", "1 y 72 d", "144 d", and a part day
+        /// written out in full, as in "8 y 113.28 d" (a game day is 10,000 ticks, so at most four decimals).
+        /// </summary>
+        public static string GameDuration(long ticks)
+        {
+            if (ticks < 0) ticks = 0;
+            long years = ticks / Timing.GameTime.TicksPerYear;
+            long rest = ticks % Timing.GameTime.TicksPerYear;
+            long days = rest / Timing.GameTime.TicksPerDay;
+            long part = rest % Timing.GameTime.TicksPerDay;
+            string d = days.ToString(CultureInfo.InvariantCulture);
+            if (part != 0) d += "." + part.ToString("0000", CultureInfo.InvariantCulture).TrimEnd('0');
+            return years > 0 ? $"{years.ToString("N0", CultureInfo.InvariantCulture)} y {d} d" : $"{d} d";
+        }
+
         /// <summary>Credits with thousands separators: 43733 gives "43,733".</summary>
         public static string Credits(long credits) => credits.ToString("N0", CultureInfo.InvariantCulture);
     }

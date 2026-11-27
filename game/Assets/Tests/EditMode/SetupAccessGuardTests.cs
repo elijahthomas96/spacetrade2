@@ -46,7 +46,8 @@ namespace SpaceTrade.Sim.Tests
                          typeof(Shipyard), typeof(YardStock), typeof(DriveUpgradePreview), typeof(PreviewLeg),
                          typeof(ShipRoute), typeof(Notification), typeof(CircuitEstimate), typeof(CircuitLeg), typeof(CircuitFreight),
                          typeof(ReturnSummary), typeof(ShipAttention), typeof(SaveLoadResult), typeof(SaveWriteResult), typeof(GameSessionOpenResult),
-                         typeof(DeliveryTotals), typeof(CatchUpRun), typeof(ShipPosition), typeof(VoyageEta) })
+                         typeof(DeliveryTotals), typeof(CatchUpRun), typeof(ShipPosition), typeof(VoyageEta),
+                         typeof(JobBoard), typeof(JobBoardEntry) })
             foreach (var c in type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
                 Assert.IsTrue(c.IsAssembly, $"{type.Name} constructor must be internal");
         }
@@ -75,7 +76,8 @@ namespace SpaceTrade.Sim.Tests
                          typeof(Shipyard), typeof(YardStock), typeof(DriveUpgradePreview), typeof(PreviewLeg),
                          typeof(RouteStop), typeof(ShipRoute), typeof(Notification), typeof(CircuitEstimate), typeof(CircuitLeg), typeof(CircuitFreight),
                          typeof(ReturnSummary), typeof(ShipAttention), typeof(SaveLoadResult), typeof(SaveWriteResult), typeof(GameSessionOpenResult), typeof(GameSession),
-                         typeof(DeliveryTotals), typeof(CatchUpRun), typeof(ShipPosition), typeof(VoyageEta) })
+                         typeof(DeliveryTotals), typeof(CatchUpRun), typeof(ShipPosition), typeof(VoyageEta),
+                         typeof(JobBoard), typeof(JobBoardEntry) })
             foreach (var p in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
                 Assert.IsNull(p.GetSetMethod(false), $"{type.Name}.{p.Name} has a public setter");
         }
@@ -92,7 +94,7 @@ namespace SpaceTrade.Sim.Tests
                 .Select(m => m.Name)
                 .OrderBy(n => n)
                 .ToArray();
-            var expected = new[] { "Advance", "AttachMarket", "BuyDrive", "BuyShip", "ClearRoute", "DebugSkipToNextArrival", "DescribeState", "Dispatch", "EstimateCircuit", "EtaOf", "FindShip", "Pause", "PauseRoute", "Play",
+            var expected = new[] { "Advance", "AttachMarket", "BuyDrive", "BuyShip", "ClearRoute", "DebugSkipToNextArrival", "DescribeState", "Dispatch", "EstimateCircuit", "EtaOf", "FindShip", "JobBoardFor", "ManualDispatchRefusal", "Pause", "PauseRoute", "Play",
                 "PositionOf", "PreviewDriveUpgrade", "Provision", "Quote", "RemainingSupplyKg", "ResumeRoute", "Schedule", "SetInSystemTransport", "SetRoute", "SetSpeed" };
             CollectionAssert.AreEqual(expected, publicMethods);
         }

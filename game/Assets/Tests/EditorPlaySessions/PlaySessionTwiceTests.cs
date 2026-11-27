@@ -36,6 +36,8 @@ namespace SpaceTrade.Game.EditorTests
             if (active.isDirty) Assert.Inconclusive("The open scene has unsaved changes; save it before running this test.");
             _scenes = EditorSceneManager.GetSceneManagerSetup();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            // Like every PlayMode test, these Play sessions run with the Game view at 1920 x 1080 (AGENTS.md).
+            SpaceTrade.Game.Tests.TestGameView.Apply();
             yield return null;
         }
 
@@ -47,6 +49,7 @@ namespace SpaceTrade.Game.EditorTests
             _listenerVolume = null;
             if (_scenes != null && _scenes.Length > 0) EditorSceneManager.RestoreSceneManagerSetup(_scenes);
             _scenes = null;
+            SpaceTrade.Game.Tests.TestGameView.Restore();
         }
 
         private static Simulation NewFixtureGame()
@@ -94,6 +97,7 @@ namespace SpaceTrade.Game.EditorTests
                 map.Show(sim, new string[0], null);
                 runner.Driver.Play();
                 for (int i = 0; i < 5; i++) yield return null;
+                yield return SpaceTrade.Game.Tests.TestGameView.WaitUntilApplied();
 
                 Assert.AreEqual(starter.Id, map.SelectedShipId, $"session {session}: the starter ship is selected");
                 foreach (var ship in sim.Ships)
@@ -172,6 +176,7 @@ namespace SpaceTrade.Game.EditorTests
                 map.Runner = runner;
                 map.Show(sim, new string[0], null);
                 for (int i = 0; i < 3; i++) yield return null;
+                yield return SpaceTrade.Game.Tests.TestGameView.WaitUntilApplied();
 
                 Assert.AreEqual(expectedHeight, map.Bar.BarRect.height, 0.5f, $"session {session}: the bar is built from this session's theme");
                 Assert.AreEqual(sim.CurrentDate.ToString(), map.Bar.DateText, $"session {session}: the bar shows the date");

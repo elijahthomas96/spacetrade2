@@ -69,6 +69,7 @@ namespace SpaceTrade.Sim.Voyages
             q.Needs = needs;
             q.TransitTicks = needs.TransitTicks;
             q.RealMillisecondsAtCurrentSpeed = GameTime.RealMillisecondsFor(needs.TransitTicks, sim.Clock.Speed);
+            q.SpeedMultiplier = ClockSpeeds.Multiplier(sim.Clock.Speed);
             q.HoldCapacityKg = (long)shipClass.HoldTonnes * 1000;
             q.TankCapacityKg = (long)shipClass.TankTonnes * 1000;
             q.Berths = shipClass.Berths;

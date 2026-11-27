@@ -5,7 +5,8 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "SpaceTrade.Sim",
-        "SpaceTrade.Game"
+        "SpaceTrade.Game",
+        "SpaceTrade.Game.Tests"
     ],
     "includePlatforms": [
         "Editor"

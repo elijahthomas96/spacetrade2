@@ -151,6 +151,30 @@ namespace SpaceTrade.Game.Boot
             FrameCheckRunning = false;
         }
 
+        /// <summary>
+        /// Debug only: a new game with this many systems, ships in flight, and one ship docked at a yard, then the job-list
+        /// frame-time scenario (planner and system view opened and sorted at 5x).
+        /// </summary>
+        public void StartPlannerFrameCheck(int systemCount, int shipsInFlight, float secondsEach, long seed = 0)
+        {
+            FrameCheckRunning = true;
+            FrameCheckReport = null;
+            StartCoroutine(PlannerCheck(systemCount, shipsInFlight, secondsEach, seed));
+        }
+
+        private System.Collections.IEnumerator PlannerCheck(int systemCount, int shipsInFlight, float secondsEach, long seed)
+        {
+            Probe.ClearAll();
+            yield return null;
+            NewGameNow(systemCount, seed, shipsInFlight, 1, false);
+            yield return null;
+            yield return null;
+            string prefix = $"{systemCount} systems, {Runner.Simulation.Ships.Count} ships ({InFlight()} in flight)";
+            yield return PlannerFrameCheck.Run(Map, Runner.Driver, Probe, secondsEach, prefix);
+            FrameCheckReport = Probe.Report() + PlannerFrameCheck.LastSummary + "\n";
+            FrameCheckRunning = false;
+        }
+
         private int InFlight()
         {
             int n = 0;

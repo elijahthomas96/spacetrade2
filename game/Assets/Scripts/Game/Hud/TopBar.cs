@@ -14,6 +14,11 @@ namespace SpaceTrade.Game.Hud
     /// The always-visible bar (spec 9.4): date, pause/play, the three speed buttons, credits, the notification bell with
     /// its list, and the settings button. It stays on top of every screen, the ship close-up included. Everything it shows
     /// is read from the simulation; the buttons send the clock commands through the game's runner.
+    ///
+    /// Its layer also holds the panels that open in the side slot under it, and keeps the one-panel rule (AGENTS.md):
+    /// the two utility panels (notification list and settings) replace each other and return to the work panel
+    /// underneath; the work panels (planner and receipt, over the selection's own panel) are kept by
+    /// <see cref="WorkPanels"/>.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     [DefaultExecutionOrder(90)]
@@ -37,10 +42,23 @@ namespace SpaceTrade.Game.Hud
         private Notification _seenNewest, _countedNewest;
         private int _unseen = -1;
         private readonly List<Rect> _covered = new List<Rect>();
+        private float _shownTallest = -1f;
 
         public MapScreen Map { get; set; }
         public NotificationList Notifications { get; private set; }
         public SettingsPanel Settings { get; private set; }
+
+        /// <summary>The voyage planner (spec 6.5), a work panel.</summary>
+        public VoyagePlanner Planner { get; private set; }
+
+        /// <summary>The delivery receipt (spec 6.7), a work panel.</summary>
+        public ReceiptPanel Receipt { get; private set; }
+
+        /// <summary>Which work panel is showing, and which come back when it closes.</summary>
+        public WorkPanels Panels { get; private set; }
+
+        /// <summary>True while the notification list or settings is open over the work panel.</summary>
+        public bool IsUtilityOpen => (Notifications != null && Notifications.IsOpen) || (Settings != null && Settings.IsOpen);
 
         public string DateText => _date?.text;
         public string CreditsText => _credits?.text;
@@ -73,6 +91,7 @@ namespace SpaceTrade.Game.Hud
                 if (_bar != null && _bar.layout.width > 0f) _covered.Add(_bar.layout);
                 if (Notifications != null && Notifications.IsOpen) _covered.Add(Notifications.Rect);
                 if (Settings != null && Settings.IsOpen) _covered.Add(Settings.Rect);
+                if (Panels != null && Panels.TryGetShownRect(out var work)) _covered.Add(work);
                 return _covered;
             }
         }
@@ -161,11 +180,25 @@ namespace SpaceTrade.Game.Hud
             _gear.style.marginLeft = t.Gap;
             _bar.Add(_gear);
 
-            Notifications = new NotificationList(_root, n => Map != null && Map.JumpToShip(n.ShipId));
+            Notifications = new NotificationList(_root, ClickNotification);
             Settings = new SettingsPanel(_root);
+            Planner = new VoyagePlanner(_root);
+            Receipt = new ReceiptPanel(_root);
+            Panels = new WorkPanels
+            {
+                UtilityOpen = () => IsUtilityOpen,
+                SelectionPanelCovered = (byWork, byUtility) => { if (Map != null && Map.Hud != null) Map.Hud.SetCovered(byWork, byUtility); },
+            };
+            Panels.Register(Planner);
+            Panels.Register(Receipt);
+            Planner.CloseRequested += () => Panels.Close(Planner);
+            Receipt.CloseRequested += () => Panels.Close(Receipt);
+            // A launched ship has left: the planner goes without a sound of its own (the dispatch is heard) and the ship's panel comes back.
+            Planner.Launched += _ => Panels.Drop(Planner);
             _clockShown = false;
             _shownCredits = long.MinValue;
             _unseen = -1;
+            _shownTallest = -1f;
         }
 
         private void OnDisable()
@@ -187,6 +220,11 @@ namespace SpaceTrade.Game.Hud
             Notifications.Bind(sim);
             Settings.Close();
             Settings.Bind(GameAudio.Current, Map != null ? Map.SettingsStore : null);
+            Panels.Drop(Planner);
+            Panels.Drop(Receipt);
+            Planner.Bind(sim, Send);
+            Receipt.Bind(sim);
+            Panels.Apply();
             Refresh();
         }
 
@@ -220,12 +258,36 @@ namespace SpaceTrade.Game.Hud
             Refresh();
         }
 
+        /// <summary>A player's command goes through the game's runner when there is one, so a refusal plays the error sound.</summary>
+        private CommandResult Send(System.Func<Simulation, CommandResult> command)
+        {
+            var runner = Map != null ? Map.Runner : null;
+            if (runner != null && runner.Simulation == _sim) return runner.Command(command);
+            return command(_sim);
+        }
+
+        /// <summary>
+        /// Clicking a notification jumps to its ship. For an arrival whose receipt the simulation still keeps, the list
+        /// then gives way and the receipt opens in the work panel's place.
+        /// </summary>
+        private bool ClickNotification(Notification n)
+        {
+            if (Map == null || !Map.JumpToShip(n.ShipId)) return false;
+            if (n.Kind != NotificationKind.Arrival) return true;
+            var receipt = Map.ReceiptOf(n);
+            if (receipt == null) return true;
+            if (Notifications.IsOpen) { MarkAllSeen(); Notifications.Close(); }
+            Map.OpenReceipt(receipt);
+            return true;
+        }
+
         public void ToggleNotifications()
         {
             if (Notifications.IsOpen) { CloseNotifications(); return; }
             if (Settings.IsOpen) Settings.Close();
             Notifications.Open();
             MarkAllSeen();
+            Panels.Apply();
             GameAudio.Play(SoundId.PanelOpen, "notification list opened");
         }
 
@@ -233,6 +295,7 @@ namespace SpaceTrade.Game.Hud
         {
             MarkAllSeen();
             Notifications.Close();
+            Panels.Apply();
             GameAudio.Play(SoundId.PanelClose, "notification list closed");
         }
 
@@ -241,11 +304,13 @@ namespace SpaceTrade.Game.Hud
             if (Settings.IsOpen)
             {
                 Settings.Close();
+                Panels.Apply();
                 GameAudio.Play(SoundId.PanelClose, "settings closed");
                 return;
             }
             if (Notifications.IsOpen) { MarkAllSeen(); Notifications.Close(); }
             Settings.Open();
+            Panels.Apply();
             GameAudio.Play(SoundId.PanelOpen, "settings opened");
         }
 
@@ -305,6 +370,17 @@ namespace SpaceTrade.Game.Hud
                 for (int i = 0; i < Speeds.Length; i++) UiKit.SetSelected(_speedButtons[i], Speeds[i] == speed);
             }
             _clockShown = true;
+
+            // The work panels: never taller than the space under the bar, and the planner kept in step with the game.
+            float tallest = _root.layout.height - Theme.TopBar.Height - 2f * Theme.Panels.Margin;
+            if (!float.IsNaN(tallest) && tallest > 0f && _shownTallest != tallest)
+            {
+                _shownTallest = tallest;
+                Planner.Panel.style.maxHeight = tallest;
+                Receipt.Panel.style.maxHeight = tallest;
+            }
+            Panels.Apply();
+            Planner.Refresh(Panels.IsShowing(Planner));
 
             Notifications.Refresh();
             var notes = _sim.Notifications;

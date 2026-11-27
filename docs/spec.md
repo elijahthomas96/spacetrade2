@@ -198,6 +198,15 @@ Failures are explained with numbers and a fix, for example "Unload 4 tonnes to m
 
 The Provision button is refused, changing nothing, unless the voyage is otherwise feasible.
 
+**The planner on screen (owner's decisions, session 14).**
+
+- **Shown as given.** The planner shows the simulation's quote and failure messages exactly as the simulation gives them. The screen never works out its own figures: the job list comes from the simulation's job board for that ship (every job at its port with the real quote for the largest load the ship can feasibly take, or the quote's own reason why it cannot fly the job), the quote from the one quote function, and the reason a ship cannot launch at all from the simulation. Both the job board and that reason are read-only queries: asking changes nothing.
+- **Opening it.** The planner opens from a docked ship's panel and takes that panel's place (section 9.4).
+- **The job list** can be sorted (nearest, most profitable, or quickest first) and filtered (hide the jobs this ship cannot fly). Jobs the ship cannot fly sort last under "most profitable" and show the reason. The list holds only jobs within the game's job distance limit (section 5.1).
+- **The load.** Clicking a job chooses its destination and its largest feasible load. Each freight line and the passenger count has minus, plus, and Max buttons and a box a number can be typed into; several kinds of freight and passengers to the same destination can be combined. Max is the job board's largest feasible load for that job alone.
+- **An empty voyage** is chosen from a list of every other system, nearest first, with its distance. It may go beyond the job distance limit.
+- **Times.** The quote shows the arrival date and the real time at the current speed if launched now, in the same words as a ship in flight (section 3.4), and the time in transit in game years and days, written exactly with no rounding (a part day is written out, as in "8 y 113.28 d").
+
 ### 6.6 Dispatch
 
 Dispatch is one transaction: validate, reserve freight and demand, book seats, buy any approved top-up, lock the manifest, bookings, drive, destination, and arrival tick, then depart. If any step fails, nothing changes.
@@ -205,8 +214,11 @@ Dispatch is one transaction: validate, reserve freight and demand, book seats, b
 The locked terms hold each freight rate (credits per tonne) and the passenger fare (credits per passenger) as fixed credit amounts taken at dispatch, never as a rolled percent. Editing the tuning file never changes the payout of a voyage already in flight.
 
 - **Top-up approval.** Dispatch carries a yes/no "buy the top-up" choice. Yes buys exactly the quoted shortfall inside the same transaction, so the result is exactly the same as pressing Provision and then dispatching. No, with any supply short, refuses the dispatch with the shortfall and its cost and changes nothing. An automated route stop's automatic provisioning setting (section 8) is this same yes/no.
+- **The yes/no on screen (owner's decision, session 14).** When supplies are short, pressing Launch asks "Buy supplies for N credits and launch?" with Yes and No. Yes dispatches with the top-up; No goes back to the planner and sends nothing. With nothing to buy, Launch dispatches at once.
+- **Never on figures the player has not seen (owner's condition, session 14).** While the planner asks, the quote on screen is held still. On the click the simulation is asked for the quote again; if any term differs from the one shown (for example after a rate re-roll), nothing is launched: the new quote is shown and, if supplies are still short, the question is asked again. The same check guards a launch that needs no top-up. The clock and the player's balance are not terms: time passing moves the arrival date by exactly the time passed, and a balance that no longer covers the top-up shows as a problem on the quote.
+- **Launched through the screen or sent directly, the result is the same.** A launch through the planner leaves the game in exactly the state the same Dispatch command leaves it in.
 - **Ships in transit.** A ship in transit cannot be quoted, provisioned, or dispatched. Each is refused with the destination and arrival date and changes nothing.
-- **Ships on in-system transport.** A ship with the in-system toggle on can still be quoted and provisioned, but dispatch is refused, changing nothing, with a reason telling the player to turn off in-system transport first (section 10).
+- **Ships on in-system transport.** A ship with the in-system toggle on can still be quoted and provisioned, but dispatch is refused, changing nothing, with a reason telling the player to turn off in-system transport first (section 10). The planner shows that reason, in the simulation's words, and greys out Launch; the same goes for a ship on an active automated route (section 8.2).
 - **Empty voyages.** A voyage with no freight and no passengers may be dispatched by hand (for example, to reposition a ship). It reserves nothing, is paid nothing, uses its supplies like any voyage, and its quote shows the loss.
 
 ### 6.7 Arrival and the receipt
@@ -228,6 +240,8 @@ Each supply aboard has a quantity and a total cost, so it has one average price.
 **Supplies bought.** The simulation keeps a running total of every credit spent buying supplies, through Provision or a dispatch top-up, so every credit spent on supplies can be accounted for. It is one total rather than a figure on each voyage, so that dispatching with the top-up still ends in exactly the same state as pressing Provision and then dispatching (section 6.6).
 
 **Arrival notification.** Each arrival raises a notification naming the ship, the destination, and the voyage's net profit (section 3.4).
+
+**The receipt on screen (owner's decision, session 14).** A receipt is shown on request, never by itself, so many ships arriving do not bury the screen. Clicking an arrival's notification selects the ship and opens that voyage's receipt, and a ship's panel has a Last receipt button for its newest one. A receipt that is no longer kept (older than `receipts.keepNewest`) cannot be opened; the notification then only jumps to the ship. The receipt takes the ship panel's place (section 9.4). Its figures match the quote that was shown at launch, figure for figure, and the elapsed game time is written exactly, in game years and days.
 
 A manually dispatched ship stays docked after arrival until ordered out again.
 
@@ -346,6 +360,13 @@ Events at the same tick are processed in this order: (1) arrivals, by ship id; (
 
 Industries, local jobs with rates, provision prices, docked ships, and shipyard stock if present.
 
+- **Details (owner's decisions, session 14):**
+  - The system view is the panel for a selected star. Everything under the star's name scrolls as one, so it fits any window.
+  - **Jobs.** Every freight offer and passenger booking from that port, each with its destination, distance, tonnes or passengers waiting, and published rate, read from the market. The list can be sorted by nearest or by highest rate. It shows no profit, because profit depends on the ship; the planner's list (section 6.5) adds profit, "quickest", and the cannot-fly filter. Only jobs within the job distance limit exist, so only those are listed.
+  - **Supplies for sale:** the fuel, food, and water prices per tonne that the simulation charges there.
+  - **Shipyard stock:** each ship class and drive the yard stocks, with how many are in stock (or "out of stock") and the price there. It is for reading only; buying is on the shipyard screen (session 15).
+  - The jobs and the stock are read again from the simulation once a game day while the view is open.
+
 ### 9.3 Fleet list
 
 Every ship with a status the player can tell apart at a glance: in transit, waiting for a load, idle, in-system transport, blocked by a problem. Clicking a ship selects it and centres the map on it.
@@ -358,7 +379,11 @@ Date, pause/play, speed buttons (1x, 3x, 5x), credits, notification list. Notifi
   - The bar stays on top of every screen, including the close-up. It also carries the settings button (the three volume sliders and mute, section 9.6).
   - The bell shows how many notifications have arrived since the list was last opened. The list shows the newest first, each with its date, an icon, and its text.
   - Clicking a notification selects its ship and centres the map on where that ship is now, even if it has moved on since. Every notification so far is about a ship; one about a system will jump to the system the same way.
-  - Esc closes the open list or settings first, then the close-up, then clears the selection.
+  - Esc closes the open list or settings first, then the top work panel (the planner or a receipt), then the close-up, then clears the selection.
+  - **One side panel at a time, in two tiers (owner's rule, reworded in session 14).**
+    - **Work panels** (the system view, the ship panel, the voyage planner, a receipt): only one shows at a time. Opening another replaces it, and closing it brings back the one it replaced.
+    - **Utility panels** (the notification list, settings): only one is open at a time, and it sits over the work panel. They replace each other and never bring each other back. Closing one returns to the work panel underneath. While a utility panel is open the work panel underneath is hidden, so none of it shows beside or below the utility panel.
+    - The planner and a receipt belong to the selected ship: selecting something else, or opening the close-up, puts them away.
 
 ### 9.5 Controls (defaults)
 
@@ -495,6 +520,7 @@ Balance targets for the default values (the agent tunes toward these and reports
 - The permission is never saved. A loaded game has debug permission only if the code that loads it grants it.
 - The button is disabled when nothing is in flight; the command, if sent anyway, is refused and changes nothing.
 - The normal Windows build has no player-triggered time jump of any kind.
+- **From the Editor's menu (session 14, for playtests before the in-game button of session 17).** While the game is playing in the Unity Editor, the menu has **spacetrade2 > Debug > Start a new game with debug skip allowed** (switches debug mode on for a fresh game) and **spacetrade2 > Debug > Skip to next arrival** (the same simulation command, refused with its reason unless that game was started with debug mode on). These menu commands are Editor-only code: they are in no build at all, normal or development.
 
 ## 14. Acceptance
 

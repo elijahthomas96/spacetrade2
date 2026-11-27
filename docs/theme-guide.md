@@ -68,6 +68,11 @@ All are colours. Art files are drawn in their own colours multiplied by the colo
 | `colours.closeUpBackground` | `#000000FF` | The colour behind the close-up's backdrop pictures. |
 | `colours.progressTrack` | `#FFFFFF1F` | The empty part of the close-up's voyage progress bar. |
 | `colours.progressFill` | `#73D9FFFF` | The filled part of the progress bar. |
+| `colours.loss` | `#FF8A73FF` | A figure that is bad news: a net loss in the job list, the planner's quote, or a receipt, and "Cannot fly" beside a job. |
+| `colours.rowSelected` | `#73D9FF40` | The wash over the job or destination chosen in the voyage planner. |
+| `colours.fieldBackground` | `#1A2433FF` | The inside of a box you type a number into (the load boxes in the planner). |
+| `colours.fieldBorder` | `#9EADC2FF` | The outline of a box you type a number into. |
+| `colours.confirmBox` | `#26364DFF` | The background of the planner's "Buy supplies and launch?" question. |
 
 ## text
 
@@ -86,7 +91,11 @@ All are colours. Art files are drawn in their own colours multiplied by the colo
 
 Spacing shared by the panels on the map. All in pixels.
 
-**One side panel at a time (owner's rule, 2026-11-27).** Only one side panel is open at a time. Opening another replaces it, closing it brings back the one it replaced, and Esc closes the top one. This is a fixed rule of how the screens behave, not a value in the theme file, so there is no field for it.
+**One side panel at a time, in two tiers (owner's rule, 2026-11-27, reworded in session 14).** This is a fixed rule of how the screens behave, not a value in the theme file, so there is no field for it.
+
+- **Work panels** (the system view, the ship panel, the voyage planner, a receipt): only one shows at a time. Opening another replaces it, and closing it brings back the one it replaced.
+- **Utility panels** (the notification list, settings): only one is open at a time, and it sits over the work panel. They replace each other and never bring each other back. Closing one returns to the work panel underneath. While a utility panel is open the work panel underneath is hidden, so nothing of it shows beside or below the utility panel.
+- **Esc** closes a utility panel first if one is open, then the top work panel (the planner or a receipt), then the close-up, then clears the selection.
 
 | Field | Default | What it does |
 |---|---|---|
@@ -261,6 +270,53 @@ The ship close-up screen. Pixels unless noted; percentages are of the screen's w
 | `closeUp.trailTopPercent` | `40` | Percent of the ship picture's height (0 to 100). Where the top of the trail is. |
 | `closeUp.trailHeightPercent` | `20` | Percent of the ship picture's height (0 to 100). How tall the trail is. |
 | `closeUp.backdropPixelsPerTick` | `0.05` | Pixels per tick (0 to 10). How fast the stars slide past a ship in flight. A tick is the game's smallest step of time: one real millisecond at 1x. The slide follows game time, so it is faster at 3x and 5x and stops while paused. |
+
+## systemView
+
+The panel for a selected star: its industries, the prices of supplies, its jobs, the ships docked there, and its shipyard's stock.
+
+| Field | Default | Unit | What it does |
+|---|---|---|---|
+| `systemView.width` | `440` | Pixels (200 to 2,000) | The width of the system view. It is wider than the ship panel (`panels.infoWidth`) because a job needs a whole line. |
+| `systemView.sectionGap` | `10` | Pixels | The gap above each heading in the system view ("Supplies for sale", "Jobs from...", "Docked here", "Shipyard stock"). |
+| `systemView.priceWidth` | `130` | Pixels | The width given to each of the three supply prices (fuel, food, water), which sit side by side. |
+
+## jobList
+
+The list of jobs, in the system view and in the voyage planner. Each job is one row of two lines of text with a figure on the right.
+
+| Field | Default | Unit | What it does |
+|---|---|---|---|
+| `jobList.rowHeight` | `44` | Pixels (10 to 1,000) | The height of one job row. Two lines of text must fit. |
+| `jobList.height` | `180` | Pixels (40 to 2,000) | The height of the list itself. More jobs than fit are reached by scrolling. |
+| `jobList.rowPadding` | `6` | Pixels | The space between a row's text and its left and right edges. |
+| `jobList.figureWidth` | `150` | Pixels | The width of the figure on the right of a row ("Net 96,267", "3,300 per tonne"). |
+| `jobList.controlGap` | `6` | Pixels | The gap between the sort buttons above the list, and between them and the "hide jobs this ship cannot fly" button. |
+
+## planner
+
+The voyage planner: the job list, the load, the quote, and the Provision and Launch buttons.
+
+| Field | Default | Unit | What it does |
+|---|---|---|---|
+| `planner.width` | `520` | Pixels (200 to 2,000) | The width of the planner. |
+| `planner.sectionGap` | `10` | Pixels | The gap between the planner's parts (job list, load, quote, buttons, the launch question). |
+| `planner.lineGap` | `3` | Pixels | The gap between one line of the quote and the next, and between one load row and the next. |
+| `planner.nameWidth` | `110` | Pixels | The width given to the name at the start of a load row ("Ore", "Passengers"). |
+| `planner.stepButtonWidth` | `30` | Pixels | The width of the minus and plus buttons beside a load. |
+| `planner.amountWidth` | `64` | Pixels | The width of the box a load is typed into. |
+| `planner.controlGap` | `6` | Pixels | The gap between buttons that sit side by side in the planner (Provision and Launch, Yes and No, Max). |
+| `planner.confirmPadding` | `8` | Pixels | The space inside the "Buy supplies and launch?" question box. |
+
+## receipt
+
+The delivery receipt shown for a finished voyage.
+
+| Field | Default | Unit | What it does |
+|---|---|---|---|
+| `receipt.width` | `440` | Pixels (200 to 2,000) | The width of the receipt. |
+| `receipt.sectionGap` | `10` | Pixels | The gap above the receipt's total lines (revenue, supplies used, net profit). |
+| `receipt.lineGap` | `3` | Pixels | The gap between the receipt's other lines. |
 
 ## controls
 

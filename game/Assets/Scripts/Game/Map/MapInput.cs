@@ -8,8 +8,8 @@ namespace SpaceTrade.Game.Map
     /// <summary>
     /// Map controls (spec 9.5): hold right or middle mouse and drag, or WASD / arrow keys, to pan; mouse wheel to zoom;
     /// left click to select a system or ship (empty space clears it); F to follow the selected ship; Space pauses and
-    /// resumes; 1, 2, 3 choose 1x, 3x, 5x. Esc closes the open list or settings panel first, then the close-up, then
-    /// clears the selection. Panning by hand ends follow mode; zooming while following zooms around the ship. Wheeling in
+    /// resumes; 1, 2, 3 choose 1x, 3x, 5x. Esc closes the open list or settings panel first, then the planner or receipt,
+    /// then the close-up, then clears the selection. While a number is being typed into the planner, the keys go to it. Panning by hand ends follow mode; zooming while following zooms around the ship. Wheeling in
     /// at the closest zoom with a ship selected opens its close-up; wheeling out or Esc closes it.
     /// How each control feels (click reach, zoom step, pan speed) comes from the theme's "controls" section.
     /// </summary>
@@ -39,6 +39,8 @@ namespace SpaceTrade.Game.Map
             var controls = Theme.Controls;
 
             bool esc = keyboard != null && keyboard.escapeKey.wasPressedThisFrame;
+            // Typing a load into the planner: digits, letters, and Space belong to the number box, not to the map.
+            if (keyboard != null && Map.Planner != null && Map.Panels.IsShowing(Map.Planner) && Map.Planner.IsTyping) keyboard = null;
             if (keyboard != null)
             {
                 if (keyboard.spaceKey.wasPressedThisFrame) Map.Bar.TogglePause();
@@ -47,6 +49,7 @@ namespace SpaceTrade.Game.Map
                 if (keyboard.digit3Key.wasPressedThisFrame) Map.Bar.ChooseSpeed(ClockSpeed.X5);
             }
             if (esc && Map.Bar.CloseDropdowns()) esc = false;
+            if (esc && Map.Panels.CloseTop()) esc = false;
 
             if (Map.IsCloseUpOpen)
             {

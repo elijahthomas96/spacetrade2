@@ -2,7 +2,8 @@
     "name": "SpaceTrade.Game.Editor",
     "rootNamespace": "SpaceTrade.Game.Editor",
     "references": [
-        "SpaceTrade.Game"
+        "SpaceTrade.Game",
+        "SpaceTrade.Sim"
     ],
     "includePlatforms": [
         "Editor"

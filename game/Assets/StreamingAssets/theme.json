@@ -33,7 +33,12 @@
     "closeUpPanel": "#0D121CE6",
     "closeUpBackground": "#000000FF",
     "progressTrack": "#FFFFFF1F",
-    "progressFill": "#73D9FFFF"
+    "progressFill": "#73D9FFFF",
+    "loss": "#FF8A73FF",
+    "rowSelected": "#73D9FF40",
+    "fieldBackground": "#1A2433FF",
+    "fieldBorder": "#9EADC2FF",
+    "confirmBox": "#26364DFF"
   },
   "text": {
     "font": "",
@@ -172,6 +177,33 @@
     "trailTopPercent": 40,
     "trailHeightPercent": 20,
     "backdropPixelsPerTick": 0.05
+  },
+  "systemView": {
+    "width": 440,
+    "sectionGap": 10,
+    "priceWidth": 130
+  },
+  "jobList": {
+    "rowHeight": 44,
+    "height": 180,
+    "rowPadding": 6,
+    "figureWidth": 150,
+    "controlGap": 6
+  },
+  "planner": {
+    "width": 520,
+    "sectionGap": 10,
+    "lineGap": 3,
+    "nameWidth": 110,
+    "stepButtonWidth": 30,
+    "amountWidth": 64,
+    "controlGap": 6,
+    "confirmPadding": 8
+  },
+  "receipt": {
+    "width": 440,
+    "sectionGap": 10,
+    "lineGap": 3
   },
   "controls": {
     "clickRadiusPixels": 24,

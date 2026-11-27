@@ -175,6 +175,63 @@ namespace SpaceTrade.Game.Tests
             LogAssert.NoUnexpectedReceived();
         }
 
+        /// <summary>Session 14: the system view, the voyage planner with its launch question, and the receipt follow the theme too.</summary>
+        [UnityTest]
+        public IEnumerator WithADifferentTheme_TheSystemViewThePlannerAndTheReceipt_AreTheThemes()
+        {
+            var theme = DifferentTheme();
+            theme.SystemView.Width = 471; theme.Planner.Width = 563; theme.Receipt.Width = 409; theme.JobList.RowHeight = 51; theme.JobList.Height = 207;
+            var themeColours = ThemeReader.FieldsOf(typeof(ColourTheme)).Select(f => (Color)f.GetValue(theme.Colours)).ToList();
+            var defaultColours = ThemeReader.FieldsOf(typeof(ColourTheme)).Select(f => (Color)f.GetValue(new GameTheme().Colours)).ToList();
+            var sizes = new[] { theme.Text.Body, theme.Text.Small, theme.Text.MapLabel, theme.Text.Title, theme.Text.CloseUpTitle, theme.Text.CloseUpSubtitle };
+            Theme.Use(theme);
+            _rig.KeepTheme = true;
+
+            // One finished voyage, so there is a receipt, and the starter docked at a port with jobs.
+            var sim = GameTestTuning.NewGameWithSystems(12);
+            var first = SpaceTrade.Sim.OpeningOffers.FindJobs(sim, sim.Ships[0].Id).OrderBy(j => j.TransitTicks).First();
+            Assert.IsTrue(sim.Dispatch(first.Quote.Plan, true).Succeeded);
+            sim.Advance(sim.Ships[0].Voyage.ArrivalTick);
+            yield return _rig.Open(sim);
+            var map = _rig.Map;
+            var problems = new List<string>();
+
+            map.Select(sim.Market.Shipyards[0].SystemId);
+            yield return MapTestRig.Frames(3);
+            int checkedText = Check(map.Hud.Root, "system view", themeColours, defaultColours, sizes, problems);
+            Assert.AreEqual(471f, map.Hud.InfoPanelRect.width, 0.5f, "the system view's width follows the theme");
+            Assert.Greater(map.Hud.SystemJobs.RowElementCount, 0);
+
+            map.SelectShip(sim.Ships[0].Id);
+            Assert.IsTrue(map.OpenPlanner());
+            yield return MapTestRig.Frames(3);
+            var job = map.Planner.Jobs.Shown.First(r => r.CanFly && !r.IsPassengers);
+            map.Planner.ChooseJob(job);
+            map.Planner.SetTonnes(job.CommodityId, 500); // a voyage that cannot be flown: the warning lines show
+            yield return MapTestRig.Frames(3);
+            checkedText += Check(map.Bar.Root, "planner with problems", themeColours, defaultColours, sizes, problems);
+            map.Planner.ChooseJob(job);
+            map.Planner.PressLaunch();
+            yield return MapTestRig.Frames(3);
+            Assert.IsTrue(map.Planner.IsConfirming, "the launch question is on screen");
+            checkedText += Check(map.Bar.Root, "planner asking", themeColours, defaultColours, sizes, problems);
+            Assert.AreEqual(563f, map.Planner.Panel.layout.width, 0.5f, "the planner's width follows the theme");
+            map.Planner.PressNo();
+            map.Planner.ToggleDestinationList();
+            yield return MapTestRig.Frames(3);
+            checkedText += Check(map.Bar.Root, "planner destinations", themeColours, defaultColours, sizes, problems);
+
+            Assert.IsTrue(map.OpenLastReceipt());
+            yield return MapTestRig.Frames(3);
+            checkedText += Check(map.Bar.Root, "receipt", themeColours, defaultColours, sizes, problems);
+            Assert.AreEqual(409f, map.Receipt.Panel.layout.width, 0.5f, "the receipt's width follows the theme");
+
+            Assert.Greater(checkedText, 120, "text elements checked");
+            TestContext.WriteLine($"{checkedText} text elements checked on the system view, planner, and receipt against a theme with every colour and size changed.");
+            CollectionAssert.IsEmpty(problems, "things on screen that do not follow the theme");
+            LogAssert.NoUnexpectedReceived();
+        }
+
         [UnityTest]
         public IEnumerator MovingShipNames_ShowOnlyForTheSelectedShipAndTheOneUnderTheMouse_AndFollowTheThemesRule()
         {

@@ -14,8 +14,9 @@ namespace SpaceTrade.Game.Tests
     /// Keeps the PlayMode tests independent of how big the owner's Game view happens to be. Before a PlayMode run the Game
     /// view is set to a fixed 1920 x 1080; after the run it is put back to whatever size was selected before.
     /// The Game view's size list has no public API in Unity, so it is reached by reflection, in the Editor only.
+    /// The Editor test that enters Play twice (in the EditMode run) uses the same code.
     /// </summary>
-    internal static class TestGameView
+    public static class TestGameView
     {
         public const int Width = 1920;
         public const int Height = 1080;

@@ -78,6 +78,10 @@ namespace SpaceTrade.Game.Theming
         public static RouteTheme Routes => Current.Routes;
         public static BackgroundTheme Background => Current.Background;
         public static CloseUpTheme CloseUp => Current.CloseUp;
+        public static SystemViewTheme SystemView => Current.SystemView;
+        public static JobListTheme JobList => Current.JobList;
+        public static PlannerTheme Planner => Current.Planner;
+        public static ReceiptTheme Receipt => Current.Receipt;
         public static ControlTheme Controls => Current.Controls;
     }
 }

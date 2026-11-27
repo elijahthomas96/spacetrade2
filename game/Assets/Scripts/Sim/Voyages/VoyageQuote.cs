@@ -79,6 +79,18 @@ namespace SpaceTrade.Sim.Voyages
         /// <summary>Real milliseconds the voyage takes at the currently selected speed.</summary>
         public long RealMillisecondsAtCurrentSpeed { get; internal set; }
 
+        /// <summary>The speed selected when the quote was made: 1, 3, or 5.</summary>
+        public int SpeedMultiplier { get; internal set; }
+
+        /// <summary>Real seconds the voyage takes at the selected speed, rounded up (spec 5.5), as every real time shown is.</summary>
+        public long RealSecondsAtCurrentSpeed => IntMath.DivideCeiling(RealMillisecondsAtCurrentSpeed, 1000);
+
+        /// <summary>
+        /// The arrival line a planner shows: "Arrives Y3 M04 D12 · 2 h 05 min 07 s at 3x" if launched now. The same wording
+        /// as a ship in flight (<see cref="VoyageEta.Describe"/>), so the screen works out no time of its own.
+        /// </summary>
+        public string DescribeArrival() => $"Arrives {ArrivalDate} · {Format.RealDuration(RealSecondsAtCurrentSpeed)} at {SpeedMultiplier}x";
+
         public VoyageNeeds Needs { get; internal set; }
         public long HoldCapacityKg { get; internal set; }
         public long TankCapacityKg { get; internal set; }

@@ -165,6 +165,45 @@ namespace SpaceTrade.Game.Theming
             });
         }
 
+        /// <summary>
+        /// A box for typing a whole number. The new number is reported when Enter is pressed or the box is left, not on
+        /// every keystroke.
+        /// </summary>
+        public static IntegerField NumberField(int value, float width, Action<int> onChange)
+        {
+            var f = new IntegerField { value = value, isDelayed = true };
+            f.style.width = width;
+            f.style.flexShrink = 0;
+            Margin(f, 0);
+            f.style.fontSize = Theme.Text.Body;
+            f.style.color = Theme.Colours.Text;
+            var input = f.Q(className: IntegerField.inputUssClassName);
+            if (input != null)
+            {
+                input.style.backgroundColor = Theme.Colours.FieldBackground;
+                input.style.color = Theme.Colours.Text;
+                Border(input, Theme.Panels.ButtonBorderWidth, Theme.Colours.FieldBorder);
+                input.style.unityTextAlign = TextAnchor.MiddleRight;
+            }
+            f.RegisterValueChangedCallback(e => onChange?.Invoke(e.newValue));
+            return f;
+        }
+
+        /// <summary>Greys a button out and stops it taking clicks, or brings it back.</summary>
+        public static void SetEnabled(Button b, bool enabled)
+        {
+            if (b.enabledSelf != enabled) b.SetEnabled(enabled);
+        }
+
+        /// <summary>A plain scrolling area with the theme's scroll bar and no sideways scrolling.</summary>
+        public static ScrollView Scroll(string name)
+        {
+            var scroll = new ScrollView(ScrollViewMode.Vertical) { name = name, horizontalScrollerVisibility = ScrollerVisibility.Hidden };
+            scroll.RegisterCallback<GeometryChangedEvent>(_ => ScrollBars(scroll));
+            ScrollBars(scroll);
+            return scroll;
+        }
+
         /// <summary>A slider from 0 to <paramref name="max"/> in whole steps.</summary>
         public static SliderInt Slider(int max, int value, Action<int> onChange)
         {

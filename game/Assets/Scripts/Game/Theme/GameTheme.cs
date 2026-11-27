@@ -46,6 +46,10 @@ namespace SpaceTrade.Game.Theming
         public RouteTheme Routes = new RouteTheme();
         public BackgroundTheme Background = new BackgroundTheme();
         public CloseUpTheme CloseUp = new CloseUpTheme();
+        public SystemViewTheme SystemView = new SystemViewTheme();
+        public JobListTheme JobList = new JobListTheme();
+        public PlannerTheme Planner = new PlannerTheme();
+        public ReceiptTheme Receipt = new ReceiptTheme();
         public ControlTheme Controls = new ControlTheme();
 
         internal static Color Hex(string text)
@@ -91,6 +95,11 @@ namespace SpaceTrade.Game.Theming
         public Color CloseUpBackground = GameTheme.Hex("#000000FF");
         public Color ProgressTrack = GameTheme.Hex("#FFFFFF1F");
         public Color ProgressFill = GameTheme.Hex("#73D9FFFF");
+        public Color Loss = GameTheme.Hex("#FF8A73FF");
+        public Color RowSelected = GameTheme.Hex("#73D9FF40");
+        public Color FieldBackground = GameTheme.Hex("#1A2433FF");
+        public Color FieldBorder = GameTheme.Hex("#9EADC2FF");
+        public Color ConfirmBox = GameTheme.Hex("#26364DFF");
     }
 
     public sealed class TextTheme
@@ -252,6 +261,45 @@ namespace SpaceTrade.Game.Theming
         [ThemeRange(0, 100)] public float TrailTopPercent = 40;
         [ThemeRange(0, 100)] public float TrailHeightPercent = 20;
         [ThemeRange(0, 10)] public float BackdropPixelsPerTick = 0.05f;
+    }
+
+    /// <summary>The system view: the panel for a selected star (spec 9.2).</summary>
+    public sealed class SystemViewTheme
+    {
+        [ThemeRange(200, 2000)] public float Width = 440;
+        public float SectionGap = 10;
+        public float PriceWidth = 130;
+    }
+
+    /// <summary>The job list, in the system view and in the voyage planner.</summary>
+    public sealed class JobListTheme
+    {
+        [ThemeRange(10, 1000)] public float RowHeight = 44;
+        [ThemeRange(40, 2000)] public float Height = 180;
+        public float RowPadding = 6;
+        public float FigureWidth = 150;
+        public float ControlGap = 6;
+    }
+
+    /// <summary>The voyage planner (spec 6.5).</summary>
+    public sealed class PlannerTheme
+    {
+        [ThemeRange(200, 2000)] public float Width = 520;
+        public float SectionGap = 10;
+        public float LineGap = 3;
+        public float NameWidth = 110;
+        public float StepButtonWidth = 30;
+        public float AmountWidth = 64;
+        public float ControlGap = 6;
+        public float ConfirmPadding = 8;
+    }
+
+    /// <summary>The delivery receipt (spec 6.7).</summary>
+    public sealed class ReceiptTheme
+    {
+        [ThemeRange(200, 2000)] public float Width = 440;
+        public float SectionGap = 10;
+        public float LineGap = 3;
     }
 
     /// <summary>Camera and control feel, kept apart from the look.</summary>

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using SpaceTrade.Game.Art;
+using SpaceTrade.Game.Hud;
 using SpaceTrade.Game.Theming;
 using SpaceTrade.Sim;
 using SpaceTrade.Sim.World;
@@ -34,7 +35,15 @@ namespace SpaceTrade.Game.Map
         private Simulation _sim;
         private int[] _priority = new int[0];
         private Label _shipStatus, _shipArrival, _shipProgress, _followText;
+        private Button _planVoyage, _lastReceipt;
         private string _dockedKey;
+        private bool _infoWanted, _coveredByWorkPanel, _coveredByUtility;
+        private JobListView _systemJobs;
+        private JobSort _systemSort = JobSort.Nearest;
+        private SpaceTrade.Sim.Timing.GameDate _systemShownDate;
+        private readonly List<(Label Label, SpaceTrade.Sim.Yards.Shipyard Yard, SpaceTrade.Sim.Yards.YardStock Stock)> _stockLabels = new List<(Label, SpaceTrade.Sim.Yards.Shipyard, SpaceTrade.Sim.Yards.YardStock)>();
+        private long _receiptCountSeen = -1;
+        private bool _shipHasReceipt;
 
         /// <summary>The map screen, for the ship panel's buttons and the docked-ship counts.</summary>
         public MapScreen Map { get; set; }
@@ -49,6 +58,38 @@ namespace SpaceTrade.Game.Map
         public int LabelCount => _labels.Count;
         public int VisibleLabelCount { get; private set; }
         public bool InfoPanelVisible => _info != null && _info.style.display == DisplayStyle.Flex;
+
+        /// <summary>True when the selection's panel is really on screen: wanted, and not replaced by the planner, a receipt, the notification list, or settings.</summary>
+        public bool InfoPanelShowing => InfoPanelVisible && !_coveredByUtility;
+
+        /// <summary>The job list in the system view, or null when no system is selected.</summary>
+        public JobListView SystemJobs => _systemJobs;
+
+        /// <summary>
+        /// The one-panel rule (AGENTS.md): the selection's panel gives way while the planner or a receipt is open over it,
+        /// and is hidden while the notification list or settings is open. It comes back when they close.
+        /// </summary>
+        public void SetCovered(bool byWorkPanel, bool byUtility)
+        {
+            _coveredByWorkPanel = byWorkPanel;
+            _coveredByUtility = byUtility;
+            ApplyInfoDisplay();
+        }
+
+        private void WantInfo(bool wanted)
+        {
+            _infoWanted = wanted;
+            ApplyInfoDisplay();
+        }
+
+        private void ApplyInfoDisplay()
+        {
+            if (_info == null) return;
+            var display = _infoWanted && !_coveredByWorkPanel ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_info.style.display != display) _info.style.display = display;
+            var visibility = _coveredByUtility ? Visibility.Hidden : Visibility.Visible;
+            if (_info.style.visibility != visibility) _info.style.visibility = visibility;
+        }
         public Rect InfoPanelRect => _info != null ? _info.layout : default;
         public Vector2 PanelSize => _root != null ? _root.layout.size : Vector2.zero;
         public string InfoTitle { get; private set; }
@@ -107,6 +148,7 @@ namespace SpaceTrade.Game.Map
             _info.style.width = panels.InfoWidth;
             _info.style.overflow = Overflow.Hidden;
             UiKit.Panel(_info, Theme.Colours.Panel, panels.Padding);
+            _infoWanted = false;
             _info.style.display = DisplayStyle.None;
             _root.Add(_info);
 
@@ -173,44 +215,127 @@ namespace SpaceTrade.Game.Map
 
         public void ShowSystem(int systemId)
         {
+            if (_systemJobs != null) _systemSort = _systemJobs.Sort;
             SelectedSystemId = systemId;
             SelectedShipId = -1;
             ClearShipRows();
             _info.Clear();
+            _systemJobs = null;
+            _stockLabels.Clear();
             InfoTitle = null;
             _dockedKey = null;
             if (systemId < 0 || _sim == null)
             {
-                _info.style.display = DisplayStyle.None;
+                WantInfo(false);
                 return;
             }
             var colours = Theme.Colours;
-            var s = _sim.Market.Galaxy.Systems[systemId];
-            var tuning = _sim.Market.Tuning;
+            var view = Theme.SystemView;
+            var market = _sim.Market;
+            var s = market.Galaxy.Systems[systemId];
+            var tuning = market.Tuning;
             InfoTitle = s.Name;
-            _info.Add(UiKit.Title(s.Name, Theme.Text.Title));
-            _info.Add(TextRow($"Population {s.PopulationMillions:N0} million", colours.TextDim));
+            _info.style.width = view.Width;
+            var title = UiKit.Title(s.Name, Theme.Text.Title);
+            title.style.flexShrink = 0;
+            _info.Add(title);
+
+            // Everything under the name scrolls as one, so the system view fits any window.
+            var body = UiKit.Scroll("system-body");
+            body.style.flexShrink = 1;
+            _info.Add(body);
+
+            body.Add(TextRow($"Population {s.PopulationMillions:N0} million", colours.TextDim));
             foreach (var id in s.IndustryIds)
             {
                 string name = tuning.Industries.FirstOrDefault(i => i.Id == id)?.Name ?? id;
-                _info.Add(IconRow(ArtLibrary.IndustryIcon(id), name, colours.Text));
+                body.Add(IconRow(ArtLibrary.IndustryIcon(id), name, colours.Text));
             }
-            if (s.HasShipyard) _info.Add(IconRow(ArtLibrary.Get("Map/shipyard_badge"), "Shipyard", colours.ShipyardBadge));
+            if (s.HasShipyard) body.Add(IconRow(ArtLibrary.Get("Map/shipyard_badge"), "Shipyard", colours.ShipyardBadge));
+
+            // Supplies for sale (spec 5.4): the prices the simulation charges here.
+            var prices = market.ProvisionPricesAt(systemId);
+            body.Add(Heading("Supplies for sale, per tonne"));
+            var priceRow = UiKit.Row();
+            priceRow.name = "provision-prices";
+            priceRow.style.marginTop = Theme.Panels.RowGap;
+            priceRow.Add(Price("Fuel", prices.FuelPerTonne));
+            priceRow.Add(Price("Food", prices.FoodPerTonne));
+            priceRow.Add(Price("Water", prices.WaterPerTonne));
+            body.Add(priceRow);
+
+            // Local jobs with their rates (spec 9.2). A port lists only jobs within the game's job distance limit.
+            var rows = JobText.PortRows(_sim, systemId);
+            body.Add(Heading($"Jobs from {s.Name} ({rows.Count})"));
+            _systemJobs = new JobListView("system-jobs", new[] { JobSort.Nearest, JobSort.HighestRate }, false, null);
+            _systemJobs.SetEmptyText("This port has no jobs.");
+            _systemJobs.SetSort(_systemSort);
+            _systemJobs.SetRows(rows);
+            _systemShownDate = _sim.CurrentDate;
+            body.Add(_systemJobs.Root);
+
             var docked = DockedAt(systemId);
             _dockedKey = string.Join(",", docked.Select(d => d.Id));
             if (docked.Count > 0)
             {
-                _info.Add(TextRow($"Docked here ({docked.Count})", colours.TextDim));
-                foreach (var row in _info.Children()) row.style.flexShrink = 0;
-                var list = new ScrollView(ScrollViewMode.Vertical) { name = "docked-list", horizontalScrollerVisibility = ScrollerVisibility.Hidden };
-                list.style.flexShrink = 1;
-                list.style.minHeight = Theme.Panels.ListMinHeight;
-                UiKit.ScrollBars(list);
+                body.Add(Heading($"Docked here ({docked.Count})"));
                 foreach (var ship in docked)
-                    list.Add(IconRow(ArtLibrary.ShipMapIcon(ship.ClassId), $"{ship.Name} · {ShipText.ClassName(_sim, ship)}", colours.Icon));
-                _info.Add(list);
+                    body.Add(IconRow(ArtLibrary.ShipMapIcon(ship.ClassId), $"{ship.Name} · {ShipText.ClassName(_sim, ship)}", colours.Icon));
             }
-            _info.style.display = DisplayStyle.Flex;
+
+            // Shipyard stock (spec 9.2). Buying is on the shipyard screen.
+            var yard = market.FindShipyard(systemId);
+            if (yard != null)
+            {
+                body.Add(Heading("Shipyard stock"));
+                foreach (var stock in yard.Ships) AddStockRow(body, yard, stock);
+                foreach (var stock in yard.Drives) AddStockRow(body, yard, stock);
+            }
+            WantInfo(true);
+        }
+
+        private static Label Heading(string text)
+        {
+            var l = UiKit.Body(text, Theme.Colours.TextDim);
+            l.style.marginTop = Theme.SystemView.SectionGap;
+            l.style.whiteSpace = WhiteSpace.Normal;
+            return l;
+        }
+
+        private static Label Price(string what, long perTonne)
+        {
+            var l = UiKit.Body($"{what} {Format.Credits(perTonne)}", Theme.Colours.Text);
+            l.name = "price-" + what.ToLowerInvariant();
+            l.style.width = Theme.SystemView.PriceWidth;
+            return l;
+        }
+
+        private void AddStockRow(VisualElement body, SpaceTrade.Sim.Yards.Shipyard yard, SpaceTrade.Sim.Yards.YardStock stock)
+        {
+            if (!_sim.Market.Stocks(stock)) return;
+            var l = TextRow(StockText(yard, stock), Theme.Colours.Text);
+            l.name = "yard-stock";
+            body.Add(l);
+            _stockLabels.Add((l, yard, stock));
+        }
+
+        private string StockText(SpaceTrade.Sim.Yards.Shipyard yard, SpaceTrade.Sim.Yards.YardStock stock)
+        {
+            var tuning = _sim.Market.Tuning;
+            string name = stock.Kind == SpaceTrade.Sim.Yards.YardItemKind.Ship
+                ? tuning.FindShip(stock.ItemId)?.Name ?? stock.ItemId
+                : tuning.FindDrive(stock.ItemId)?.Name ?? stock.ItemId;
+            string count = stock.Count == 0 ? "out of stock" : $"{stock.Count} in stock";
+            return $"{name}: {count} · {Format.Credits(_sim.Market.Price(yard, stock.Kind, stock.ItemId))} credits";
+        }
+
+        /// <summary>Once a game day, the system view's jobs and yard stock are read again from the simulation.</summary>
+        private void RefreshSystemView()
+        {
+            if (_systemJobs == null || _sim == null || SelectedSystemId < 0 || _sim.CurrentDate.Equals(_systemShownDate)) return;
+            _systemShownDate = _sim.CurrentDate;
+            _systemJobs.SetRows(JobText.PortRows(_sim, SelectedSystemId));
+            foreach (var (label, yard, stock) in _stockLabels) SetText(label, StockText(yard, stock));
         }
 
         /// <summary>Shows the selected ship's panel: name, class, where it is, and the Follow and Close-up buttons.</summary>
@@ -223,15 +348,18 @@ namespace SpaceTrade.Game.Map
             _dockedKey = null;
             ClearShipRows();
             var ship = _sim?.FindShip(shipId);
+            _systemJobs = null;
+            _stockLabels.Clear();
             if (ship == null)
             {
                 SelectedShipId = -1;
-                _info.style.display = DisplayStyle.None;
+                WantInfo(false);
                 return;
             }
             var colours = Theme.Colours;
             var panels = Theme.Panels;
             InfoTitle = ship.Name;
+            _info.style.width = panels.InfoWidth;
             _info.Add(UiKit.Title(ship.Name, Theme.Text.Title));
             _info.Add(IconRow(ArtLibrary.ShipMapIcon(ship.ClassId), ShipText.ClassName(_sim, ship), colours.Icon));
             _shipStatus = TextRow("", colours.Text);
@@ -254,13 +382,30 @@ namespace SpaceTrade.Game.Map
             closeUp.name = "close-up";
             buttons.Add(closeUp);
             _info.Add(buttons);
-            _info.style.display = DisplayStyle.Flex;
+
+            // The planner and the last receipt open in this panel's place (the one-panel rule) and give it back when closed.
+            var work = UiKit.Row();
+            work.style.marginTop = panels.ButtonRowGap;
+            work.style.flexWrap = Wrap.Wrap;
+            _planVoyage = UiKit.TextButton("Plan voyage", () => Map?.OpenPlanner(), null);
+            _planVoyage.name = "plan-voyage";
+            UiKit.Margin(_planVoyage, 0);
+            _planVoyage.style.marginRight = panels.InlineGap;
+            work.Add(_planVoyage);
+            _lastReceipt = UiKit.TextButton("Last receipt", () => Map?.OpenLastReceipt(), null);
+            _lastReceipt.name = "last-receipt";
+            UiKit.Margin(_lastReceipt, 0);
+            work.Add(_lastReceipt);
+            _info.Add(work);
+            _receiptCountSeen = -1;
+            WantInfo(true);
             RefreshShipRows();
         }
 
         private void ClearShipRows()
         {
             _shipStatus = _shipArrival = _shipProgress = _followText = null;
+            _planVoyage = _lastReceipt = null;
         }
 
         private void RefreshShipRows()
@@ -275,6 +420,22 @@ namespace SpaceTrade.Game.Map
             SetText(_shipArrival, ShipText.Eta(_sim, ship.Id));
             SetText(_shipProgress, p.InTransit ? "Progress " + ShipText.Progress(_sim, p) : "Mouse wheel in at the closest zoom for the close-up");
             if (_followText != null) SetText(_followText, Map != null && Map.IsFollowing ? "Following (F)" : "Follow (F)");
+            if (_planVoyage != null)
+            {
+                var plan = p.InTransit ? DisplayStyle.None : DisplayStyle.Flex;
+                if (_planVoyage.style.display != plan) _planVoyage.style.display = plan;
+            }
+            if (_lastReceipt != null)
+            {
+                long deliveries = _sim.DeliveryTotals.Deliveries;
+                if (deliveries != _receiptCountSeen)
+                {
+                    _receiptCountSeen = deliveries;
+                    _shipHasReceipt = Map != null && Map.LastReceiptOf(ship.Id) != null;
+                }
+                var receipt = _shipHasReceipt ? DisplayStyle.Flex : DisplayStyle.None;
+                if (_lastReceipt.style.display != receipt) _lastReceipt.style.display = receipt;
+            }
         }
 
         private static void SetText(Label l, string text)
@@ -309,6 +470,7 @@ namespace SpaceTrade.Game.Map
             if (!float.IsNaN(tallest) && tallest > 0f && _info.style.maxHeight.value.value != tallest) _info.style.maxHeight = tallest;
             if (SelectedShipId >= 0) RefreshShipRows();
             if (SelectedSystemId >= 0 && _dockedKey != string.Join(",", DockedAt(SelectedSystemId).Select(d => d.Id))) ShowSystem(SelectedSystemId);
+            RefreshSystemView();
             PlaceDockedCounts(panel);
             var placed = new List<Rect>();
             PlaceShipNames(panel, placed);

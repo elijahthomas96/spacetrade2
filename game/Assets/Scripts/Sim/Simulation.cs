@@ -137,8 +137,30 @@ namespace SpaceTrade.Sim
             if (plan == null) throw new ArgumentNullException(nameof(plan));
             var ship = FindShip(plan.ShipId);
             if (ship?.Route != null && ship.Route.IsActive)
-                return CommandResult.Fail($"{ship.Name} is on an automated route. Pause or clear its route to dispatch it by hand.");
+                return CommandResult.Fail(ActiveRouteRefusal(ship));
             return DispatchCore(plan, buyTopUp);
+        }
+
+        /// <summary>Why a ship on an active route cannot be dispatched by hand (spec 8.2). The one wording, used by Dispatch and by the planner.</summary>
+        private static string ActiveRouteRefusal(Ship ship) =>
+            $"{ship.Name} is on an automated route. Pause or clear its route to dispatch it by hand.";
+
+        /// <summary>Why a ship on in-system transport cannot be dispatched (spec 6.6, 10). The one wording, used by Dispatch and by the planner.</summary>
+        private string InSystemRefusal(Ship ship) =>
+            $"{ship.Name} is on in-system transport at {Market.Galaxy.Systems[ship.DockedSystemId.Value].Name}. Turn off in-system transport to dispatch it.";
+
+        /// <summary>
+        /// Why a manual dispatch of this ship would be refused whatever the voyage, or null when nothing stands in the
+        /// way: the ship is on an active automated route, or on in-system transport. The text is exactly what
+        /// <see cref="Dispatch"/> refuses with, so a screen can show the reason before the player presses launch.
+        /// Read-only: it changes nothing. A ship in transit is reported by the quote instead.
+        /// </summary>
+        public string ManualDispatchRefusal(int shipId)
+        {
+            var ship = FindShip(shipId) ?? throw new ArgumentException($"There is no ship with id {shipId}.", nameof(shipId));
+            if (ship.Route != null && ship.Route.IsActive) return ActiveRouteRefusal(ship);
+            if (ship.IsOnInSystemTransport) return InSystemRefusal(ship);
+            return null;
         }
 
         /// <summary>The dispatch transaction shared by manual orders and automated route departures.</summary>
@@ -146,7 +168,7 @@ namespace SpaceTrade.Sim
         {
             var ship = FindShip(plan.ShipId);
             if (ship != null && ship.IsOnInSystemTransport)
-                return CommandResult.Fail($"{ship.Name} is on in-system transport at {Market.Galaxy.Systems[ship.DockedSystemId.Value].Name}. Turn off in-system transport to dispatch it.");
+                return CommandResult.Fail(InSystemRefusal(ship));
             var quote = Quote(plan);
             if (!quote.IsFeasible) return CommandResult.Fail(string.Join(" ", quote.Problems));
 
